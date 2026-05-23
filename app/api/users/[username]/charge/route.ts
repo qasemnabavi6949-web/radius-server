@@ -1,111 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { query, initDb } from '@/lib/db';
 
-export async function POST(req: NextRequest, props: { params: Promise<{ username: string }> }) {
-  const params = await props.params;
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: Request, { params }: { params: any }) {
   try {
-    const { username } = params;
-    
-    let body: any = {};
-    try { body = await req.json(); } catch { /* ignore */ }
-    
-    const action = body.action || 'charge';
+    await initDb();
+    const resolvedParams = await params;
+    const username = resolvedParams?.username;
+    if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
 
-    if (action === 'add_traffic') {
-       if (!body.bytes) return NextResponse.json({ error: 'Missing bytes' }, { status: 400 });
-       await query(`
-         UPDATE dashboard_users 
-         SET dataLimitBytes = COALESCE(dataLimitBytes, 0) + ?,
-             dataLimitString = CONCAT(CAST((COALESCE(dataLimitBytes, 0) + ?) / (1024*1024) AS UNSIGNED), ' MB')
-         WHERE username = ?
-       `, [body.bytes, body.bytes, username]);
-       
-       await query(`UPDATE dashboard_users SET accountStatus = 'Active' WHERE username = ?`, [username]);
-       await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'`, [username]);
-       
-       return NextResponse.json({ success: true, message: 'Traffic added' });
+    const userRows: any = await query(`SELECT \`group\`, dataLimitBytes FROM dashboard_users WHERE username = ?`, [username]);
+    if (!userRows || userRows.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const userGroup = userRows?.group || userRows?.[0]?.group;
+    const currentBytes = parseInt(userRows?.dataLimitBytes || userRows?.[0]?.dataLimitBytes) || 0;
+
+    let profileBytes = 10 * 1024 * 1024;
+    let profileString = '10.00 MB';
+
+    if (userGroup) {
+      const profileRows: any = await query(`SELECT totalTraffic FROM dashboard_profiles WHERE name = ?`, [userGroup]);
+      const alloc = profileRows?.totalTraffic || profileRows?.[0]?.totalTraffic;
+      if (alloc) {
+        profileBytes = parseFloat(alloc) * 1024 * 1024;
+        profileString = `${parseFloat(alloc).toFixed(2)} MB`;
+      }
     }
 
-    if (action === 'reset_stats') {
-       await query(`
-         UPDATE dashboard_users 
-         SET chargedAt = CURRENT_TIMESTAMP, accountStatus = 'Active'
-         WHERE username = ?
-       `, [username]);
-       await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'`, [username]);
-       return NextResponse.json({ success: true, message: 'Stats reset' });
-    }
+    const newBytes = currentBytes + profileBytes;
+    const newString = `${(newBytes / 1024 / 1024).toFixed(2)} MB`;
 
-    // Action === 'charge'
-    await query(`
-      CREATE TABLE IF NOT EXISTS dashboard_activations (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(64),
-        firstName VARCHAR(100),
-        lastName VARCHAR(100),
-        profile VARCHAR(100),
-        price DECIMAL(10, 2),
-        totalPrice DECIMAL(10, 2),
-        userPrice DECIMAL(10, 2),
-        oldExpiration VARCHAR(50),
-        newExpiration VARCHAR(50),
-        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    await query(`UPDATE dashboard_users SET dataLimitBytes = ?, dataLimitString = ?, daily_usage = '0.00 MB', accountStatus = 'Active', chargedAt = CURRENT_TIMESTAMP WHERE username = ?`, [newBytes, newString, username]);
+    await query(`DELETE FROM radacct WHERE username = ?`, [username]);
+    await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'`, [username]);
 
-    // Reset traffic usage counting to from now
-    await query(`
-      UPDATE dashboard_users 
-      SET chargedAt = CURRENT_TIMESTAMP, accountStatus = 'Active'
-      WHERE username = ?
-    `, [username]);
-    
-    await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'`, [username]);
-
-    const userResult: any = await query(`SELECT firstName, lastName, \`group\`, expiration FROM dashboard_users WHERE username = ? LIMIT 1`, [username]);
-    if (userResult && userResult.length > 0) {
-       const u = userResult[0];
-       let price = 0;
-       let validityDays = 30; // default
-       
-       let dataLimitBytes = 0;
-       let dataLimitString = 'Unlimited';
-       
-       if (u.group) {
-          const profileResult: any = await query(`SELECT price, validityDays, totalTraffic FROM dashboard_profiles WHERE name = ? LIMIT 1`, [u.group]);
-          if (profileResult && profileResult.length > 0) {
-             const p = profileResult[0];
-             price = parseFloat(p.price) || 0;
-             if (p.validityDays !== null && p.validityDays !== undefined && p.validityDays !== '') {
-               const parsedDays = parseInt(p.validityDays);
-               validityDays = isNaN(parsedDays) ? 30 : parsedDays;
-             }
-             if (p.totalTraffic && !isNaN(parseFloat(p.totalTraffic))) {
-               dataLimitBytes = parseFloat(p.totalTraffic) * 1024 * 1024;
-               dataLimitString = `${p.totalTraffic} MB`;
-             }
-          }
-       }
-       
-       const newExp = new Date();
-       newExp.setDate(newExp.getDate() + validityDays);
-       const newExpStr = newExp.toISOString().slice(0, 10); 
-
-       await query(`
-         UPDATE dashboard_users 
-         SET expiration = ?, dataLimitBytes = ?, dataLimitString = ?
-         WHERE username = ?
-       `, [newExpStr, dataLimitBytes, dataLimitString, username]);
-
-       await query(`
-         INSERT INTO dashboard_activations (username, firstName, lastName, profile, price, totalPrice, userPrice, oldExpiration, newExpiration)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       `, [username, u.firstName || '', u.lastName || '', u.group || '', price, price, price, u.expiration || 'N/A', newExpStr]);
-    }
-
-    return NextResponse.json({ success: true, message: 'User charged successfully' });
-  } catch (error) {
-    console.error('Error charging user:', error);
-    return NextResponse.json({ error: 'Failed to charge user' }, { status: 500 });
+    return NextResponse.json({ success: true, message: 'Package renewed successfully' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -1,30 +1,23 @@
-const http = require('http');
+const { query, initDb } = require('./lib/db');
 
-process.on('uncaughtException', (err) => {
-  console.error('Unhandled Exception in background_job:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection in background_job:', reason);
-});
-
-function pollCron() {
+async function syncDailyTraffic() {
   try {
-    http.get('http://127.0.0.1:3000/api/cron/traffic', (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        console.log('Cron response:', data);
-      });
-    }).on('error', (err) => {
-      console.error('Cron request failed:', err.message);
-    });
+    await initDb();
+    // محاسبه مصرف امروز بر اساس بایت و تبدیل به فرمت متنی مورد نظر فرانت‌اَند
+    await query(`
+      UPDATE dashboard_users du
+      JOIN (
+        SELECT username, SUM(COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)) as today_bytes
+        FROM radacct
+        WHERE acctstarttime >= CURDATE()
+        GROUP BY username
+      ) a ON du.username = a.username
+      SET du.daily_usage = CONCAT(ROUND(a.today_bytes / 1024 / 1024, 2), ' MB');
+    `);
+    console.log('Daily usage successfully synced to dashboard.');
   } catch (err) {
-    console.error('pollCron synchronous error:', err);
+    console.error('Error syncing traffic:', err);
   }
 }
 
-// Check every 60 seconds
-setInterval(pollCron, 60000);
-console.log('Scheduled traffic cron running every 60s');
-setTimeout(pollCron, 5000); // initial run
+syncDailyTraffic().then(() => process.exit(0));
