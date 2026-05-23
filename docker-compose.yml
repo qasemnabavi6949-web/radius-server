@@ -1,0 +1,68 @@
+services:
+  sas-radius-db:
+    image: mariadb:10.11
+    container_name: sas-radius-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: radius
+      MYSQL_USER: radius
+      MYSQL_PASSWORD: radpass
+    volumes:
+      - sas-db-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - radius-net
+
+  sas-radius-core:
+    image: radius-server-sas-radius-core
+    container_name: sas-radius-core
+    restart: always
+    depends_on:
+      - sas-radius-db
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+      - "3799:3799/udp"
+    volumes:
+      - ./sql.conf:/etc/freeradius/3.0/mods-available/sql
+      - ./queries.conf:/etc/freeradius/3.0/mods-config/sql/main/mysql/queries.conf
+      - ./default_site:/etc/freeradius/3.0/sites-enabled/default
+    networks:
+      - radius-net
+
+  sas-radius-app:
+    image: radius-server-sas-radius-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sas-radius-app
+    restart: always
+    privileged: true
+    user: "root"
+    pid: "host"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      - sas-radius-db
+    ports:
+      - "80:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/systemd/system:/run/systemd/system
+      - /:/etc/host-root:ro
+      - ./background_job.js:/app/background_job.js
+    environment:
+      - DATABASE_URL=mysql://radius:radpass@sas-radius-db:3306/radius
+      - NEXT_TELEMETRY_DISABLED=1
+    networks:
+      - radius-net
+
+volumes:
+  sas-db-data:
+
+networks:
+  radius-net:
+    driver: bridge
