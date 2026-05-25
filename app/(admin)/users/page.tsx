@@ -79,13 +79,11 @@ export default function UserList() {
     return Math.ceil((ed.getTime() - td.getTime()) / (1000 * 60 * 60 * 24)) > 0 ? Math.ceil((ed.getTime() - td.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   };
 
-    const getUserStatus = (u: any) => {
-    if (!u || u.status === 'Disabled' || u.accountStatus === 'Disabled') return 'Disabled';
-    if (u.isOnline === 1 || u.status === 'Online') return 'Online';
-    if (calculateDaysValue(u.expiration) === 0) return 'Expired';
-    const rb = u.remainingBytes !== undefined ? u.remainingBytes : u.bytes_remaining;
-    if (rb === 0 || (u.remainingStr || '').includes('0.00 MB')) return 'Depleted';
-    if (typeof window !== 'undefined' && localStorage.getItem(`has_charged_${u.username}`) === 'true') return 'Active';
+  const getUserStatus = (u: any) => {
+    if (!u) return 'Disabled';
+    if (u.status === 'Online') return 'Online';
+    if (u.accountStatus === 'Disabled') return 'Disabled';
+    if (u.remainingStr === '0.00 MB') return 'Depleted';
     return 'Active';
   };
 
@@ -214,7 +212,7 @@ export default function UserList() {
               return (
                 <tr key={i} className="hover:bg-gray-50 transition">
                   <td className="p-3"><input type="checkbox" /></td>
-                  <td className="p-3"><span className={`w-3 h-3 block rounded-sm ${st === 'Disabled' ? 'bg-red-500' : st === 'Online' ? 'bg-blue-500' : st === 'Expired' ? 'bg-orange-500' : st === 'Depleted' ? 'bg-yellow-400' : 'bg-green-500'}`}></span></td>
+                  <td className="p-3"><span className={`w-3 h-3 block rounded-full ${st === 'Disabled' ? 'bg-red-500' : st === 'Online' ? 'bg-blue-500' : st === 'Depleted' ? 'bg-yellow-400' : 'bg-green-500'}`}></span></td>
                   <td onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setSelectedProfile(u.group || ''); setEditStaticIp(u.staticIp || u.static_ip || ''); setEditExpiration(u.expiration || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || u.national_id || ''); setEditNote(u.note || ''); setManageTab('overview'); setIsManageModalOpen(true); }} className="p-3 font-bold text-blue-600 cursor-pointer hover:underline">{u.username}</td>
                   <td className="p-3 text-gray-500 font-mono">{u.expiration || 'Permanent'}</td>
                   <td className="p-3 text-gray-600">{u.parent || 'admin'}</td>
