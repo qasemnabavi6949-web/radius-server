@@ -81,6 +81,15 @@ export default function UserList() {
 
   const getUserStatus = (u: any) => {
     if (!u) return 'Disabled';
+    if (u.status === 'Online' || u.status === 'online') return 'Online';
+    if (parseFloat(u.daily_usage || u.daily_traffic || '0') > 0 && (u.remainingStr || '').includes('0.00 MB')) return 'Depleted';
+    if (u.accountStatus === 'Disabled' && parseFloat(u.daily_usage || u.daily_traffic || '0') > 0) return 'Depleted';
+    if (u.accountStatus === 'Disabled') return 'Disabled';
+    return 'Active';
+  };
+
+  const getUserStatusOld = (u: any) => {
+    if (!u) return 'Disabled';
     if (u.status === 'Online') return 'Online';
     if (u.accountStatus === 'Disabled') return 'Disabled';
     if (u.remainingStr === '0.00 MB') return 'Depleted';
