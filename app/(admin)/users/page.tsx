@@ -84,23 +84,14 @@ export default function UserList() {
   };
 
   const getUserStatus = (u: any) => {
-    if (!u) return 'Disabled';
-    if (u.status === 'Online' || u.status === 'online' || u.acctstoptime === null || (u.acctsessionid && !u.acctstoptime)) return 'Online';
-    if (parseFloat(u.daily_usage || u.daily_traffic || '0') > 0 && (u.dataLimitString || '').includes('0.00 MB')) return 'Depleted';
-    if (u.accountStatus === 'Disabled') return 'Disabled';
-    return 'Active';
-  };
-
-  const getUserStatusOld = (u: any) => {
-    if (!u) return 'Disabled';
-    if (u.status === 'Online') return 'Online';
-    if (u.accountStatus === 'Disabled') return 'Disabled';
-    if (u.remainingStr === '0.00 MB') return 'Depleted';
-    return 'Active';
+    if (!u) return "Disabled";
+    if (u.status === "Online" || u.status === "online" || u.is_online === 1) return "Online";
+    if (u.accountStatus === "Disabled" && parseFloat(u.daily_usage || u.daily_traffic || "0") > 0) return "Depleted";
+    if (u.accountStatus === "Disabled") return "Disabled";
+    return "Active";
   };
 
   const countStatus = (st: string) => users.filter(u => getUserStatus(u) === st).length;
-  // ثبت کاربر جدید همراه با فیلدهای هویتی و تماس جدید درخواستی شما
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -117,25 +108,24 @@ export default function UserList() {
     } catch (e) {}
   };
 
-  // ذخیره دائم مشخصات هویتی و تاریخ انقضا بدون رفرش شدن
   const handleSaveUserEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await fetch(`/api/users/${selectedUser.username}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: editUsername, password: editPassword, group: selectedProfile, staticIp: editStaticIp, expiration: editExpiration, status: 'Active',
-          name: editName, family: editFamily, phone: editPhone, email: editEmail, address: editAddress,
-          nationalId: editNationalId, note: editNote
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: editPassword, group: selectedUser.group, staticIp: editStaticIp,
+          name: editName, family: editFamily, phone: editPhone, email: editEmail,
+          address: editAddress, nationalId: editNationalId, note: editNote
         })
       });
       if (res.ok) {
-        if (typeof window !== 'undefined') localStorage.setItem(`has_charged_${selectedUser.username}`, 'true');
-        addLocalLog(selectedUser.username, `Profile details and Expiration updated to: ${editExpiration}`);
-        alert("Saved permanently!"); setIsManageModalOpen(false); fetchUsers();
+        alert("Saved permanently!");
+        setIsManageModalOpen(false);
+        fetchUsers();
       }
-    } catch (e) {}
+    } catch (err) {}
   };
 
   const handleOverviewAction = async (actionType: 'charge' | 'disconnect' | 'add_traffic' | 'status') => {
