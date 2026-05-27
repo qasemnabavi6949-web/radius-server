@@ -6,25 +6,31 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     await initDb();
-    
-    // لود کردن کاربران همراه با محاسبه مجموع حجم خروجی و ورودی امروز از جدول radacct رادیوس
+
     const users = await query(`
-      SELECT 
+      SELECT
         u.*,
         COALESCE(u.dataLimitString, '0.00 MB') as remainingStr,
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 FROM radacct 
+            WHERE username = u.username AND acctstoptime IS NULL
+          ) THEN 'Online'
+          ELSE 'Offline'
+        END as status,
         IFNULL(
           (
             SELECT CONCAT(ROUND(SUM(acctinputoctets + acctoutputoctets) / 1024 / 1024, 2), ' MB')
             FROM radacct
-            WHERE username = u.username 
+            WHERE username = u.username
               AND acctstarttime >= DATE(NOW())
-          ), 
+          ),
           '0.00 MB'
         ) as daily_usage
       FROM dashboard_users u
       ORDER BY u.id DESC
     `);
-    
+
     return NextResponse.json(users || []);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -35,10 +41,10 @@ export async function POST(req: Request) {
   try {
     await initDb();
     const body = await req.json();
-    
-    const { 
-      username, password, group, staticIp, 
-      name, family, phone, email, address, nationalId, note 
+
+    const {
+      username, password, group, staticIp,
+      name, family, phone, email, address, nationalId, note
     } = body;
 
     if (!username || !password) {
@@ -47,32 +53,32 @@ export async function POST(req: Request) {
 
     try {
       await query(`
-        INSERT INTO dashboard_users 
-          (username, password, \`group\`, staticIp, name, family, phone, email, address, nationalId, note, accountStatus) 
+        INSERT INTO dashboard_users
+          (username, password, \`group\`, staticIp, name, family, phone, email, address, nationalId, note, accountStatus)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
       `, [username, password, group || 'Default', staticIp || '', name || '', family || '', phone || '', email || '', address || '', nationalId || '', note || '']);
     } catch (dbErr) {
       await query(`
-        INSERT INTO dashboard_users (username, password, \`group\`, staticIp, accountStatus) 
+        INSERT INTO dashboard_users (username, password, \`group\`, staticIp, accountStatus)
         VALUES (?, ?, ?, ?, 'Active')
       `, [username, password, group || 'Default', staticIp || '']);
     }
 
     await query(`
-      INSERT INTO radcheck (username, attribute, op, value) 
+      INSERT INTO radcheck (username, attribute, op, value)
       VALUES (?, 'Cleartext-Password', ':=', ?)
     `, [username, password]);
 
     if (group) {
       await query(`
-        INSERT INTO radusergroup (username, groupname, priority) 
+        INSERT INTO radusergroup (username, groupname, priority)
         VALUES (?, ?, 1)
       `, [username, group]);
     }
 
     if (staticIp) {
       await query(`
-        INSERT INTO radcheck (username, attribute, op, value) 
+        INSERT INTO radcheck (username, attribute, op, value)
         VALUES (?, 'Framed-IP-Address', '==', ?)
       `, [username, staticIp]);
     }
