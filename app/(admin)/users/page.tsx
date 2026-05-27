@@ -216,9 +216,9 @@ export default function UserList() {
                   <td className="p-3"><input type="checkbox" /></td>
                   <td className="p-3"><span className={`w-3 h-3 block rounded-full ${st === 'Disabled' ? 'bg-red-500' : st === 'Online' ? 'bg-blue-500' : st === 'Depleted' ? 'bg-yellow-400' : 'bg-green-500'}`}></span></td>
                   <td onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setSelectedProfile(u.group || ''); setEditStaticIp(u.staticIp || u.static_ip || ''); setEditExpiration(u.expiration || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || u.national_id || ''); setEditNote(u.note || ''); setManageTab('overview'); setIsManageModalOpen(true); }} className="p-3 font-bold text-blue-600 cursor-pointer hover:underline">{u.username}</td>
-                  <td className="p-3 text-gray-500 font-semibold">{u.dataLimitString || 'Unlimited'}</td>
+                  <td className="p-3 text-gray-500">{u.expiration ? u.expiration.split('T')[0] : 'Permanent'}</td>
                   <td className="p-3 text-gray-600">{u.parent || 'admin'}</td>
-                  <td className="p-3 text-blue-600 font-semibold">{u.group || 'None'}</td>
+                  <td className="p-3 text-gray-500 font-semibold">{u.dataLimitString || 'Unlimited'}</td>
                   <td className="p-3 font-semibold text-gray-900">{u.daily_usage || u.today_traffic || '0.00 MB'}</td>
                   <td className="p-3 text-gray-500 font-semibold">{calculateDaysValue(u.expiration)}</td>
                 </tr>
