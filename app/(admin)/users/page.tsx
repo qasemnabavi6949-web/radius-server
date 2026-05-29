@@ -5,80 +5,74 @@ import dynamic from 'next/dynamic';
 
 const UserTrafficChart = dynamic(() => import('../report/TrafficReportChart'), { ssr: false });
 
-export default function UserList() {
+export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTrafficModalOpen, setIsTrafficModalOpen] = useState(false);
   const [manageTab, setManageTab] = useState<'overview' | 'edit' | 'traffic' | 'history'>('overview');
+
   const [userTrafficData, setUserTrafficData] = useState<any[]>([]);
+  const [historyData, setHistoryData] = useState<any[]>([]);
   const [isUserTrafficLoading, setIsUserTrafficLoading] = useState(false);
-  const [userHistoryData, setUserHistoryData] = useState<any[]>([]);
   const [userTrafficMonth, setUserTrafficMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [userTrafficYear, setUserTrafficYear] = useState(new Date().getFullYear().toString());
 
-  // فیلدهای هویتی درخواستی شما برای ساخت یوزر جدید
-  const [newUsername, setNewUsername] = useState(''); const [newPassword, setNewPassword] = useState('');
-  const [newProfile, setNewProfile] = useState(''); const [newStaticIp, setNewStaticIp] = useState('');
-  const [newName, setNewName] = useState(''); const [newFamily, setNewFamily] = useState('');
-  const [newPhone, setNewPhone] = useState(''); const [newEmail, setNewEmail] = useState('');
-  const [newAddress, setNewAddress] = useState(''); const [newNationalId, setNewNationalId] = useState('');
-  const [newNote, setNewNote] = useState('');
+  const [trafficTarget, setTrafficTarget] = useState('all');
+  const [trafficAmount, setTrafficAmount] = useState('');
+  const [trafficComment, setTrafficComment] = useState('');
 
-  // فیلدهای هویتی برای ویرایش یوزر
-  const [editUsername, setEditUsername] = useState(''); const [editPassword, setEditPassword] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState(''); const [editStaticIp, setEditStaticIp] = useState('');
-  const [editExpiration, setEditExpiration] = useState(''); const [editName, setEditName] = useState('');
-  const [editFamily, setEditFamily] = useState(''); const [editPhone, setEditPhone] = useState('');
-  const [editEmail, setEditEmail] = useState(''); const [editAddress, setEditAddress] = useState('');
-  const [editNationalId, setEditNationalId] = useState(''); const [editNote, setEditNote] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editStaticIp, setEditStaticIp] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editFamily, setEditFamily] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editNationalId, setEditNationalId] = useState('');
+  const [editNote, setEditNote] = useState('');
 
-  useEffect(() => { fetchUsers(); fetchProfiles(); }, []);
-  const fetchProfiles = async () => { try { const res = await fetch('/api/profiles'); if (res.ok) setProfiles(await res.json()); } catch (e) {} };
-  const fetchUsers = async () => { try { const res = await fetch('/api/users'); if (res.ok) { const d = await res.json(); setUsers(Array.isArray(d) ? d : d.data || []); } } catch (e) {} };
-
-  useEffect(() => {
-    if (selectedUser) {
-      if (manageTab === 'traffic') fetchUserTraffic();
-      if (manageTab === 'history') fetchUserHistory();
-    }
-  }, [manageTab, selectedUser, userTrafficYear, userTrafficMonth]);
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setUsers(data || []);
+    } catch (e) {}
+  };
 
   const fetchUserTraffic = async () => {
+    if (!selectedUser) return;
     setIsUserTrafficLoading(true);
     try {
       const res = await fetch(`/api/report/traffic?year=${userTrafficYear}&month=${userTrafficMonth}&username=${selectedUser.username}`);
-      const j = await res.json(); setUserTrafficData(j.data || j || []);
+      const j = await res.json();
+      setUserTrafficData(j.data || j || []);
     } catch (e) {}
     setIsUserTrafficLoading(false);
   };
 
   const fetchUserHistory = async () => {
+    if (!selectedUser) return;
     try {
       const res = await fetch(`/api/users/${selectedUser.username}/history`);
-      if (res.ok) {
-        const j = await res.json(); const server = j.data || j || [];
-        const local = JSON.parse(localStorage.getItem(`logs_${selectedUser.username}`) || '[]');
-        setUserHistoryData([...local, ...server]);
-      }
+      const j = await res.json();
+      setHistoryData(j.data || j || []);
     } catch (e) {}
   };
 
-  const addLocalLog = (username: string, txt: string) => {
-    const k = `logs_${username}`; const old = JSON.parse(localStorage.getItem(k) || '[]');
-    const dt = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const n = { action: txt, log_text: txt, message: txt, date: dt, created_at: dt };
-    const updated = [n, ...old]; localStorage.setItem(k, JSON.stringify(updated)); localStorage.setItem(`has_charged_${username}`, 'true');
-    setUserHistoryData(updated);
-  };
+  useEffect(() => { fetchUsers(); }, []);
+  
+  useEffect(() => { 
+    if (manageTab === 'traffic') fetchUserTraffic(); 
+    if (manageTab === 'history') fetchUserHistory();
+  }, [manageTab, selectedUser, userTrafficYear, userTrafficMonth]);
 
   const calculateDaysValue = (exp: string) => {
     if (!exp || exp === '') return 'Permanent';
     const ed = new Date(exp);
     const td = new Date();
-    ed.setHours(0,0,0,0);
-    td.setHours(0,0,0,0);
+    ed.setHours(0,0,0,0); td.setHours(0,0,0,0);
     const diff = Math.ceil((ed.getTime() - td.getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? `${diff} Days` : 'Expired';
   };
@@ -92,19 +86,21 @@ export default function UserList() {
   };
 
   const countStatus = (st: string) => users.filter(u => getUserStatus(u) === st).length;
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  const handleOverviewAction = async (actionType: string, payload?: any) => {
+    let url = `/api/users/${selectedUser.username}/${actionType}`;
     try {
-      const res = await fetch('/api/users', {
+      const res = await fetch(url, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: newUsername, password: newPassword, group: newProfile, staticIp: newStaticIp,
-          name: newName, family: newFamily, phone: newPhone, email: newEmail, address: newAddress,
-          nationalId: newNationalId, note: newNote
-        })
+        body: payload ? JSON.stringify(payload) : null
       });
-      if (res.ok) { alert('User created successfully!'); setIsAddModalOpen(false); fetchUsers(); }
+      if (res.ok) {
+        alert('Success!');
+        setIsManageModalOpen(false);
+        setIsTrafficModalOpen(false);
+        fetchUsers();
+      }
     } catch (e) {}
   };
 
@@ -120,106 +116,46 @@ export default function UserList() {
           address: editAddress, nationalId: editNationalId, note: editNote
         })
       });
-      if (res.ok) {
-        alert("Saved permanently!");
-        setIsManageModalOpen(false);
-        fetchUsers();
-      }
+      if (res.ok) { alert("Saved successfully!"); setIsManageModalOpen(false); fetchUsers(); }
     } catch (err) {}
   };
-
-  const handleOverviewAction = async (actionType: 'charge' | 'disconnect' | 'add_traffic' | 'status') => {
-    if (actionType === 'charge') {
-      if (!confirm("Renew user profile package?")) return;
-      try {
-        const res = await fetch(`/api/users/${selectedUser.username}/charge`, { method: 'POST' });
-        if (res.ok) {
-          if (typeof window !== 'undefined') localStorage.setItem(`has_charged_${selectedUser.username}`, 'true');
-          addLocalLog(selectedUser.username, `Profile package renewed successfully (Package: ${selectedUser.group || 'Default'})`);
-          alert('User package charged successfully!'); fetchUsers();
-        }
-      } catch (e) {}
-    }
-
-    if (actionType === 'add_traffic') {
-      const inputMb = prompt("Enter traffic amount to ADD (in MB):", "1024");
-      if (!inputMb || isNaN(Number(inputMb))) return;
-      try {
-        const res = await fetch(`/api/users/${selectedUser.username}/charge`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bytes: parseFloat(inputMb) * 1024 * 1024, traffic_mb: parseFloat(inputMb) })
-        });
-        if (res.ok) {
-          if (typeof window !== 'undefined') localStorage.setItem(`has_charged_${selectedUser.username}`, 'true');
-          const currentStr = selectedUser.remainingStr || '0.00 MB';
-          const currentMb = parseFloat(currentStr.replace(/[^0-9.]/g, '')) || 0;
-          const formattedRemaining = `${(currentMb + parseFloat(inputMb)).toFixed(2)} MB`;
-
-          setSelectedUser((prev: any) => ({ ...prev, remainingStr: formattedRemaining }));
-          setUsers(prev => prev.map(u => u.username === selectedUser.username ? { ...u, remainingStr: formattedRemaining } : u));
-          addLocalLog(selectedUser.username, `Added manual traffic: ${inputMb} MB (New Balance: ${formattedRemaining})`);
-          alert(`${inputMb} MB added successfully!`); fetchUsers();
-        }
-      } catch (e) {}
-    }
-
-    if (actionType === 'disconnect') {
-      if (!confirm("Disconnect user?")) return;
-      fetch(`/api/users/${selectedUser.username}/disconnect`, { method: 'POST' }).then(res => {
-        if (res.ok) { addLocalLog(selectedUser.username, "User disconnected from network"); alert('User disconnected.'); fetchUsers(); }
-      });
-    }
-
-    if (actionType === 'status') {
-      if (!confirm("Change user status?")) return;
-      const newStatus = selectedUser.status === 'Disabled' ? 'Active' : 'Disabled';
-      fetch(`/api/users/${selectedUser.username}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) }).then(res => {
-        if (res.ok) { addLocalLog(selectedUser.username, `Status changed to ${newStatus}`); fetchUsers(); setIsManageModalOpen(false); }
-      });
-    }
-  };
-
-  const formatTableBytes = (v: any) => {
-    if (!v) return '0.00 KB'; if (typeof v === 'string' && /[MGB]B/.test(v)) return v;
-    const b = parseFloat(v) || 0;
-    if (b >= 1073741824) return `${(b / 1073741824).toFixed(2)} GB`;
-    if (b >= 1048576) return `${(b / 1048576).toFixed(2)} MB`;
-    return `${(b / 1024).toFixed(2)} KB`;
-  };
-
   return (
     <div className="space-y-4 p-6 bg-gray-50 min-h-screen text-gray-800 text-sm">
       <div className="flex flex-wrap gap-6 bg-white p-3 border border-gray-200 rounded-lg shadow-sm font-medium">
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-sm"></span> Online ({countStatus('Online')})</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-sm"></span> Active ({countStatus('Active')})</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 bg-orange-500 rounded-sm"></span> Expired ({countStatus('Expired')})</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-400 rounded-sm"></span> Depleted ({countStatus('Depleted')})</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-sm"></span> Disabled ({countStatus('Disabled')})</div>
       </div>
 
-      <div className="flex justify-between items-center bg-slate-800 text-white p-3 rounded-t-lg shadow-sm">
-        <span className="font-semibold">Users Table | Total: {users.length}</span>
-        <button onClick={() => { setNewUsername(''); setNewPassword(''); setNewStaticIp(''); setNewName(''); setNewFamily(''); setNewPhone(''); setNewEmail(''); setNewAddress(''); setNewNationalId(''); setNewNote(''); setIsAddModalOpen(true); }} className="flex items-center gap-1 bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-xs font-bold transition"><Plus size={14}/> Add User</button>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-b-lg overflow-x-auto shadow-sm">
-        <table className="w-full text-left text-xs divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
-            <tr><th className="p-3 w-10"><input type="checkbox" /></th><th className="p-3">STATUS</th><th className="p-3">USERNAME</th><th className="p-3">EXPIRATION</th><th className="p-3">PARENT</th><th className="p-3">PROFILE</th><th className="p-3">DAILY TRAFFIC</th><th className="p-3">REMAINING DAYS</th></tr>
+      <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="bg-gray-100 text-gray-600 font-bold border-b">
+              <th className="p-3 w-10"><input type="checkbox" /></th>
+              <th className="p-3 w-16">Status</th>
+              <th className="p-3">Username</th>
+              <th className="p-3">Expiration</th>
+              <th className="p-3">Parent</th>
+              <th className="p-3">Remaining Traffic</th>
+              <th className="p-3">Daily Traffic</th>
+              <th className="p-3">Remaining Days</th>
+            </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody>
             {users.map((u, i) => {
               const st = getUserStatus(u);
               return (
-                <tr key={i} className="hover:bg-gray-50 transition">
-                  <td className="p-3"><input type="checkbox" /></td>
-                  <td className="p-3"><span className={`w-3 h-3 block rounded-full ${st === 'Disabled' ? 'bg-red-500' : st === 'Online' ? 'bg-blue-500' : st === 'Depleted' ? 'bg-yellow-400' : 'bg-green-500'}`}></span></td>
-                  <td onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setSelectedProfile(u.group || ''); setEditStaticIp(u.staticIp || u.static_ip || ''); setEditExpiration(u.expiration || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || u.national_id || ''); setEditNote(u.note || ''); setManageTab('overview'); setIsManageModalOpen(true); }} className="p-3 font-bold text-blue-600 cursor-pointer hover:underline">{u.username}</td>
-                  <td className="p-3 text-gray-500">{u.expiration ? u.expiration.split('T')[0] : 'Permanent'}</td>
+                <tr key={i} onClick={() => { setSelectedUser(u); setManageTab('overview'); setTrafficAmount(''); setTrafficComment(''); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setIsManageModalOpen(true); }} className="hover:bg-gray-50 transition border-b cursor-pointer">
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}><input type="checkbox" /></td>
+                  <td className="p-3">
+                    <span className={`w-3 h-3 block rounded-full ${st === 'Disabled' ? 'bg-red-500' : st === 'Online' ? 'bg-blue-500' : st === 'Depleted' ? 'bg-yellow-400' : 'bg-green-500'}`}></span>
+                  </td>
+                  <td className="p-3 font-medium text-gray-900">{u.username}</td>
+                  <td className="p-3 text-gray-500">{u.expiration ? u.expiration.split('T') : 'Permanent'}</td>
                   <td className="p-3 text-gray-600">{u.parent || 'admin'}</td>
                   <td className="p-3 text-gray-500 font-semibold">{u.dataLimitString || 'Unlimited'}</td>
-                  <td className="p-3 font-semibold text-gray-900">{u.daily_usage || u.today_traffic || '0.00 MB'}</td>
+                  <td className="p-3 font-semibold text-gray-900">{u.daily_usage || '0.00 MB'}</td>
                   <td className="p-3 text-gray-500 font-semibold">{calculateDaysValue(u.expiration)}</td>
                 </tr>
               );
@@ -227,125 +163,171 @@ export default function UserList() {
           </tbody>
         </table>
       </div>
-      {/* مودال مجهز و استاندارد ساخت کاربر جدید (Add User) همراه با فیلدهای هویتی درخواستی */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <form onSubmit={handleCreateUser} className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 my-8">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-base text-slate-800 flex items-center gap-2"><User size={18}/> Create New Customer</h3>
-              <button type="button" onClick={() => setIsAddModalOpen(false)} className="text-gray-500 hover:text-gray-700"><X size={18}/></button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Username *</label><input type="text" required value={newUsername} onChange={e=>setNewUsername(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Password *</label><input type="text" required value={newPassword} onChange={e=>setNewPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">First Name</label><input type="text" value={newName} onChange={e=>setNewName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Last Name / Family</label><input type="text" value={newFamily} onChange={e=>setNewFamily(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Phone Number</label><input type="text" value={newPhone} onChange={e=>setNewPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" placeholder="e.g. 079xxxxxxx" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Email Address</label><input type="email" value={newEmail} onChange={e=>setNewEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" placeholder="name@example.com" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">National ID / Passport</label><input type="text" value={newNationalId} onChange={e=>setNewNationalId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-              <div><label className="block text-xs font-bold text-gray-600 mb-1">Profile / Package *</label><select value={newProfile} onChange={e=>setNewProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" required><option value="">Select Package</option>{profiles.map((p:any)=><option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
-            </div>
-            
-            <div><label className="block text-xs font-bold text-gray-600 mb-1">Static IP Address</label><input type="text" value={newStaticIp} onChange={e=>setNewStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" placeholder="Optional (e.g. 10.10.10.54)" /></div>
-            <div><label className="block text-xs font-bold text-gray-600 mb-1">Physical Address</label><input type="text" value={newAddress} onChange={e=>setNewAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-            <div><label className="block text-xs font-bold text-gray-600 mb-1">Description / Note</label><textarea value={newNote} onChange={e=>setNewNote(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 h-16 resize-none" placeholder="Admin notes about this customer..."></textarea></div>
-            
-            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold transition">Save & Create Account</button>
-          </form>
-        </div>
-      )}
 
-      {/* مودال مدیریت کاربر */}
-      {isManageModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl border border-gray-200 overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50"><h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-blue-600"/> Manage User: {selectedUser.username}</h2><button onClick={() => setIsManageModalOpen(false)}><X size={20}/></button></div>
-            <div className="flex border-b bg-gray-50 px-2 gap-1">{(['overview', 'edit', 'traffic', 'history'] as const).map(tab => <button key={tab} type="button" onClick={() => setManageTab(tab)} className={`px-4 py-2 text-sm font-medium border-b-2 capitalize transition ${manageTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}>{tab}</button>)}</div>
-            <div className="p-6 overflow-y-auto flex-1 bg-white">
+      {isManageModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden text-gray-800 flex flex-col h-[550px]">
+            <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+              <div className="flex items-center gap-2 text-sky-600 font-bold text-lg">
+                <span>Manage User: {selectedUser?.username}</span>
+              </div>
+              <button onClick={() => setIsManageModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
+            </div>
+
+            <div className="flex border-b bg-white px-4 text-xs font-semibold text-gray-500 gap-6">
+              <button onClick={() => setManageTab('overview')} className={`py-2 border-b-2 ${manageTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Overview</button>
+              <button onClick={() => setManageTab('edit')} className={`py-2 border-b-2 ${manageTab === 'edit' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Edit</button>
+              <button onClick={() => setManageTab('traffic')} className={`py-2 border-b-2 ${manageTab === 'traffic' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Traffic</button>
+              <button onClick={() => setManageTab('history')} className={`py-2 border-b-2 ${manageTab === 'history' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>History</button>
+            </div>
+
+            <div className="flex-1 p-6 overflow-y-auto bg-white">
               {manageTab === 'overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  <div className="lg:col-span-5 space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <button type="button" onClick={() => handleOverviewAction('status')} className="flex flex-col items-center justify-center p-3 bg-slate-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><Zap size={18} /> Toggle Status</button>
-                      <button type="button" onClick={() => handleOverviewAction('charge')} className="flex flex-col items-center justify-center p-3 bg-blue-600 text-white rounded-lg text-xs font-bold gap-1 min-h-[75px]"><RefreshCw size={18} /> Charge User</button>
-                      <button type="button" onClick={() => setManageTab('edit')} className="flex flex-col items-center justify-center p-3 bg-slate-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><Package size={18} /> Edit Profile</button>
-                      <button type="button" onClick={() => handleOverviewAction('disconnect')} className="flex flex-col items-center justify-center p-3 bg-slate-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><WifiOff size={18} /> Disconnect</button>
-                      <button type="button" onClick={() => handleOverviewAction('charge')} className="flex flex-col items-center justify-center p-3 bg-slate-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><FileClock size={18} /> Reset Stats</button>
-                      <button type="button" onClick={() => { const n = prompt("New name:", selectedUser.username); if(n) handleOverviewAction('charge'); }} className="flex flex-col items-center justify-center p-3 bg-slate-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><Edit2 size={18} /> Rename</button>
-                      <button type="button" onClick={() => { if(confirm("Delete user?")) fetch(`/api/users/${selectedUser.username}`, { method: 'DELETE' }).then(() => { fetchUsers(); setIsManageModalOpen(false); }); }} className="flex flex-col items-center justify-center p-3 bg-red-600 text-white rounded-lg text-xs font-medium gap-1 min-h-[75px]"><Trash2 size={18} /> Delete</button>
-                    </div>
-                    <button type="button" onClick={() => handleOverviewAction('add_traffic')} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2.5 rounded-lg font-medium"><Plus size={16} /> Add Traffic (MB)</button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => handleOverviewAction('status')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Zap className="w-5 h-5" /><span className="text-[10px] font-bold">Toggle Status</span></button>
+                    <button onClick={() => handleOverviewAction('charge')} className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><RefreshCw className="w-5 h-5" /><span className="text-[10px] font-bold">Charge User</span></button>
+                    <button onClick={() => setManageTab('edit')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Package className="w-5 h-5" /><span className="text-[10px] font-bold">Edit Profile</span></button>
+                    <button onClick={() => handleOverviewAction('disconnect')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><WifiOff className="w-5 h-5" /><span className="text-[10px] font-bold">Disconnect</span></button>
+                    <button className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Activity className="w-5 h-5" /><span className="text-[10px] font-bold">Reset Stats</span></button>
+                    <button onClick={() => setManageTab('edit')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Edit2 className="w-5 h-5" /><span className="text-[10px] font-bold">Rename</span></button>
+                    <button className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition col-span-1"><Trash2 className="w-5 h-5" /><span className="text-[10px] font-bold">Delete</span></button>
+                    <button onClick={() => { setIsTrafficModalOpen(true); }} className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex col-span-3 items-center justify-center text-center gap-2 shadow-sm transition font-bold text-xs"><Plus className="w-4 h-4" /> + Add Traffic (MB)</button>
                   </div>
-                  <div className="lg:col-span-7 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left bg-white divide-y divide-gray-200 text-xs">
-                      <tbody className="divide-y divide-gray-100">
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50 w-1/3">Username / Name</td><td className="p-2.5 font-medium">{selectedUser.username} {selectedUser.name ? `(${selectedUser.name} ${selectedUser.family || ''})` : ''}</td></tr>
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Phone Number</td><td className="p-2.5 font-mono text-slate-700">{selectedUser.phone || 'Not Set'}</td></tr>
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Static IP</td><td className="p-2.5 text-indigo-600 font-semibold">{selectedUser.staticIp || selectedUser.static_ip || 'Not Set'}</td></tr>
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Profile / Group</td><td className="p-2.5 text-blue-600 font-semibold">{selectedUser.group || 'None'}</td></tr>
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Expiration</td><td className="p-2.5 text-gray-700 font-mono">{selectedUser.expiration || 'Permanent'}</td></tr>
-                        <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Remaining Traffic</td><td className="p-2.5 font-bold text-gray-900">{selectedUser.remainingStr || 'Available'}</td></tr>
-                        {selectedUser.note && <tr><td className="p-2.5 font-semibold text-gray-600 bg-gray-50/50">Admin Note</td><td className="p-2.5 text-orange-600 italic">{selectedUser.note}</td></tr>}
-                      </tbody>
-                    </table>
+
+                  <div className="border border-gray-100 rounded-xl p-4 bg-gray-50 text-xs space-y-3 font-medium">
+                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Username / Name</span><span className="text-gray-900 font-bold">{selectedUser?.username}</span></div>
+                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Phone Number</span><span className="text-gray-900">{selectedUser?.phone || 'Not Set'}</span></div>
+                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Static IP</span><span className="text-blue-600 font-semibold">{selectedUser?.staticIp || 'Not Set'}</span></div>
+                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Profile / Group</span><span className="text-blue-600 font-bold">{selectedUser?.group}</span></div>
+                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Expiration</span><span className="text-gray-900 font-bold">{selectedUser?.expiration ? selectedUser.expiration.split('T') : 'Permanent'}</span></div>
+                    <div className="flex justify-between pt-1"><span className="text-gray-500">Remaining Traffic</span><span className="text-gray-900 font-bold bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">{selectedUser?.dataLimitString || '0.00 MB'}</span></div>
                   </div>
                 </div>
               )}
-
               {manageTab === 'edit' && (
-                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white p-2 rounded-xl text-xs max-w-2xl">
+                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs max-w-2xl">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block font-bold text-gray-600 mb-1">Username</label><input type="text" value={editUsername} onChange={e=>setEditUsername(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Username</label><input type="text" value={editUsername} disabled className="w-full px-3 py-1.5 border rounded-lg bg-gray-100 text-gray-500" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" placeholder="Leave empty to keep old" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">First Name</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Last Name</label><input type="text" value={editFamily} onChange={e=>setEditFamily(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Phone Number</label><input type="text" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Email Address</label><input type="email" value={editEmail} onChange={e=>setEditEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" value={editEmail} onChange={e=>setEditEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Address</label><input type="text" value={editAddress} onChange={e=>setEditAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" value={editNationalId} onChange={e=>setEditNationalId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Profile</label><select value={selectedProfile} onChange={e=>setSelectedProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900"><option value="">Select Profile</option>{profiles.map((p:any)=><option key={p.id} value={p.name}>{p.name}</option>)}</select></div>
+                    <div className="md:col-span-2"><label className="block font-bold text-gray-600 mb-1">Note</label><textarea value={editNote} onChange={e=>setEditNote(e.target.value)} rows={2} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" value={editStaticIp} onChange={e=>setEditStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Expiration Date (YYYY-MM-DD)</label><input type="text" value={editExpiration} onChange={e=>setEditExpiration(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Physical Address</label><input type="text" value={editAddress} onChange={e=>setEditAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Admin Notes</label><textarea value={editNote} onChange={e=>setEditNote(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 h-16 resize-none"></textarea></div>
-                  </div>
-                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition mt-2">Save Changes</button>
+                  <button type="submit" className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Save Changes</button>
                 </form>
               )}
 
               {manageTab === 'traffic' && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center bg-gray-50 border p-4 rounded-xl">
-                    <h3 className="text-base font-bold text-gray-900">Traffic Report</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
+                    <h4 className="font-bold text-gray-700 text-xs">Daily Usage Reports</h4>
                     <div className="flex gap-2">
-                      <select value={userTrafficMonth} onChange={e=>setUserTrafficMonth(e.target.value)} className="px-3 py-1.5 border rounded-lg bg-white text-gray-900"><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
-                      <select value={userTrafficYear} onChange={e=>setUserTrafficYear(e.target.value)} className="px-3 py-1.5 border rounded-lg bg-white text-gray-900"><option value="2026">2026</option><option value="2025">2025</option></select>
+                      <select value={userTrafficYear} onChange={e=>setUserTrafficYear(e.target.value)} className="px-2 py-1 border rounded bg-white text-xs text-gray-800">
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                      </select>
+                      <select value={userTrafficMonth} onChange={e=>setUserTrafficMonth(e.target.value)} className="px-2 py-1 border rounded bg-white text-xs text-gray-800">
+                        {Array.from({length:12}).map((_,m)=> {
+                          const v = (m+1).toString().padStart(2,'0');
+                          return <option key={v} value={v}>{v}</option>
+                        })}
+                      </select>
                     </div>
                   </div>
-                  {isUserTrafficLoading ? <div className="text-center py-10 text-gray-500">Loading charts...</div> : <div className="border rounded-xl p-4 bg-white"><UserTrafficChart data={userTrafficData} /></div>}
-                  <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-xs text-gray-700 bg-white divide-y divide-gray-200">
-                      <thead className="bg-gray-50 font-bold border-b"><tr><th className="p-3">Day</th><th className="p-3">Download</th><th className="p-3">Upload</th><th className="p-3">Total</th><th className="p-3">Real Traffic</th></tr></thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {userTrafficData.length === 0 ? (<tr><td colSpan={5} className="p-4 text-center text-gray-400">No daily data found</td></tr>) : (userTrafficData.map((row: any, idx: number) => (<tr key={idx} className="hover:bg-gray-50/50"><td className="p-3 font-semibold text-gray-900">{row.day || row.date || `${userTrafficYear}-${userTrafficMonth}-${idx+1}`}</td><td className="p-3 text-blue-600">{formatTableBytes(row.download_bytes || row.download)}</td><td className="p-3 text-purple-600">{formatTableBytes(row.upload_bytes || row.upload)}</td><td className="p-3 text-green-600 font-bold">{formatTableBytes(row.total_bytes || row.total)}</td><td className="p-3 text-orange-600 font-bold">{formatTableBytes(row.realTraffic || row.real_traffic || row.total)}</td></tr>)))}
+                  {isUserTrafficLoading ? (
+                    <div className="p-10 text-center text-gray-400 font-semibold">Loading charts...</div>
+                  ) : (
+                    <div className="h-64 border rounded-xl p-2 bg-gray-50">
+                      <UserTrafficChart data={userTrafficData} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {manageTab === 'history' && (
+                <div className="space-y-3 text-xs">
+                  <h4 className="font-bold text-gray-700 border-b pb-2">User Connection History</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border border-gray-100 rounded-lg">
+                      <thead className="bg-gray-50 text-gray-600 font-bold border-b">
+                        <tr><th className="p-2">Action</th><th className="p-2">Details/Comment</th><th className="p-2">Date</th></tr>
+                      </thead>
+                      <tbody>
+                        {historyData.map((h: any, idx: number) => (
+                          <tr key={idx} className="border-b hover:bg-gray-50">
+                            <td className="p-2 font-semibold text-sky-600">{h.action}</td>
+                            <td className="p-2 text-gray-700">{h.details || h.comment || 'N/A'}</td>
+                            <td className="p-2 text-gray-500">{h.date ? new Date(h.date).toLocaleString() : 'N/A'}</td>
+                          </tr>
+                        ))}
+                        {historyData.length === 0 && <tr><td colSpan={3} className="text-center p-4 text-gray-400">No history data available for this cycle.</td></tr>}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
 
-              {manageTab === 'history' && (
-                <div className="border rounded-xl overflow-hidden">
-                  <table className="w-full text-left bg-white">
-                    <thead className="bg-gray-50 text-xs font-bold border-b"><tr><th className="p-3">Action / Log</th><th className="p-3">Date & Time</th></tr></thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {userHistoryData.map((h: any, i) => (<tr key={i} className="hover:bg-gray-50"><td className="p-3 font-medium text-gray-800">{h.action || h.log_text || h.message}</td><td className="p-3 text-gray-500 font-mono">{h.date || h.created_at}</td></tr>))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+      {isTrafficModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-gray-800">
+            <div className="p-4 border-b flex justify-between items-center bg-white">
+              <h3 className="font-bold text-lg text-gray-700">Add/Remove Traffic</h3>
+              <button onClick={() => setIsTrafficModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
+            </div>
+            <div className="p-4 space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-gray-600 mb-1">Username</label>
+                <input type="text" value={selectedUser?.username || ''} disabled className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 font-semibold" />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-600 mb-1">Target</label>
+                <select value={trafficTarget} onChange={e => setTrafficTarget(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-800 focus:outline-none">
+                  <option value="all">Download + Upload</option>
+                  <option value="down">Only Download</option>
+                  <option value="up">Only Upload</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-gray-600 mb-1">Amount (MB)</label>
+                <input type="number" value={trafficAmount} onChange={e => setTrafficAmount(e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-600 mb-1">Comment</label>
+                <textarea value={trafficComment} onChange={e => setTrafficComment(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none" />
+              </div>
+            </div>
+            <div className="p-4 bg-white flex justify-end gap-2 border-t">
+              <button onClick={() => setIsTrafficModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Dismiss</button>
+              <button onClick={async () => {
+                const amt = parseFloat(trafficAmount) || 0;
+                if (amt === 0) { alert('Please enter an amount'); return; }
+                try {
+                  const res = await fetch(`/api/users/${selectedUser.username}/add-traffic`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ traffic: amt, target: trafficTarget, comment: trafficComment })
+                  });
+                  if (res.ok) {
+                    alert('Traffic Added Successfully!');
+                    setIsManageModalOpen(false);
+                    setIsTrafficModalOpen(false);
+                    fetchUsers();
+                  } else {
+                    alert('Server or Route Error!');
+                  }
+                } catch (e) {
+                  alert('Network Error!');
+                }
+              }} className="px-4 py-2 bg-sky-400 hover:bg-sky-500 text-white rounded text-sm font-medium shadow-sm transition">Submit</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { query, initDb } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request, { params }: { params: any }) {
   try {
     await initDb();
@@ -10,23 +12,23 @@ export async function POST(req: Request, { params }: { params: any }) {
 
     const body = await req.json();
     const amountMb = parseFloat(body.traffic) || 0;
-    const target = body.target || 'Download + Upload';
-    const comment = body.comment || '';
     const addedBytes = amountMb * 1024 * 1024;
 
-    const userRows: any = await query(`SELECT dataLimitBytes FROM dashboard_users WHERE username = ?`, [username]);
-    if (!userRows || userRows.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    const currentBytes = parseInt(userRows[0].dataLimitBytes) || 0;
+    await query(`UPDATE dashboard_users SET dataLimitBytes = dataLimitBytes + ?, accountStatus = 'Active' WHERE username = ?`, [addedBytes, username]);
     
-    // محاسبه حجم جدید (پشتیبانی از مقادیر منفی برای کاهش حجم)
-    const newBytes = Math.max(0, currentBytes + addedBytes);
-    const newString = `${(newBytes / 1024 / 1024).toFixed(2)} MB`;
+    const updatedRows: any = await query(`SELECT dataLimitBytes FROM dashboard_users WHERE username = ?`, [username]);
+    if (updatedRows && updatedRows.length > 0) {
+      const freshBytes = parseFloat(updatedRows[0]?.dataLimitBytes || '0');
+      const freshString = `${(freshBytes / 1024 / 1024).toFixed(2)} MB`;
+      await query(`UPDATE dashboard_users SET dataLimitString = ? WHERE username = ?`, [freshString, username]);
+    }
 
-    // بروزرسانی دیتابیس پنل و رادیوس
-    await query(`UPDATE dashboard_users SET dataLimitBytes = ?, dataLimitString = ?, accountStatus = 'Active', note = ? WHERE username = ?`, [newBytes, newString, comment, username]);
     await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'`, [username]);
-    await query(`DELETE FROM radacct WHERE username = ?`, [username]);
+    await query(`UPDATE radacct SET acctstoptime = NOW() WHERE username = ? AND acctstoptime IS NULL`, [username]);
+
+    try {
+      await query(`INSERT INTO dashboard_activations (username, created_at) VALUES (?, CURRENT_TIMESTAMP)`, [username]);
+    } catch (e) {}
 
     return NextResponse.json({ success: true, message: 'Traffic updated successfully' });
   } catch (error: any) {
