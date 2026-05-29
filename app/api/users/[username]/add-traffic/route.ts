@@ -13,12 +13,13 @@ export async function POST(req: Request, { params }: { params: any }) {
     const body = await req.json();
     const amountMb = parseFloat(body.traffic) || 0;
     const addedBytes = amountMb * 1024 * 1024;
+    const comment = body.comment || '';
 
     await query(`UPDATE dashboard_users SET dataLimitBytes = dataLimitBytes + ?, accountStatus = 'Active' WHERE username = ?`, [addedBytes, username]);
     
     const updatedRows: any = await query(`SELECT dataLimitBytes FROM dashboard_users WHERE username = ?`, [username]);
     if (updatedRows && updatedRows.length > 0) {
-      const freshBytes = parseFloat(updatedRows[0]?.dataLimitBytes || '0');
+      const freshBytes = parseFloat(updatedRows?.dataLimitBytes || '0');
       const freshString = `${(freshBytes / 1024 / 1024).toFixed(2)} MB`;
       await query(`UPDATE dashboard_users SET dataLimitString = ? WHERE username = ?`, [freshString, username]);
     }
@@ -27,8 +28,14 @@ export async function POST(req: Request, { params }: { params: any }) {
     await query(`UPDATE radacct SET acctstoptime = NOW() WHERE username = ? AND acctstoptime IS NULL`, [username]);
 
     try {
-      await query(`INSERT INTO dashboard_activations (username, created_at) VALUES (?, CURRENT_TIMESTAMP)`, [username]);
-    } catch (e) {}
+      const logDetails = `Added ${amountMb} MB. Comment: ${comment}`;
+      await query(`INSERT INTO dashboard_activations (username, action, date) VALUES (?, ?, CURRENT_TIMESTAMP)`, [username, logDetails]);
+    } catch (e) {
+      try {
+        const logDetails = `Added ${amountMb} MB. Comment: ${comment}`;
+        await query(`INSERT INTO dashboard_activations (username, profile, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, [username, logDetails]);
+      } catch (e2) {}
+    }
 
     return NextResponse.json({ success: true, message: 'Traffic updated successfully' });
   } catch (error: any) {
