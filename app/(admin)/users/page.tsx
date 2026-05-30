@@ -35,6 +35,7 @@ export default function UsersPage() {
   const [editNote, setEditNote] = useState('');
   const [editExpiration, setEditExpiration] = useState('');
   const [editProfile, setEditProfile] = useState('');
+  const [profilesList, setProfilesList] = useState<any[]>([]);
 
   const fetchUsers = async () => {
     try {
@@ -43,7 +44,13 @@ export default function UsersPage() {
       setUsers(data || []);
     } catch (e) {}
   };
-
+  const fetchProfiles = async () => {
+    try {
+      const res = await fetch('/api/profiles');
+      const data = await res.json();
+      setProfilesList(data || []);
+    } catch (e) {}
+  };
   const fetchUserTraffic = async () => {
     if (!selectedUser) return;
     setIsUserTrafficLoading(true);
@@ -64,7 +71,7 @@ export default function UsersPage() {
     } catch (e) {}
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => { fetchUsers(); fetchProfiles(); }, []);
   
   useEffect(() => { 
     if (manageTab === 'traffic') fetchUserTraffic(); 
@@ -156,7 +163,7 @@ export default function UsersPage() {
               return (
                 <tr 
                   key={i} 
-                  onClick={() => { setSelectedUser(u); setManageTab('overview'); setTrafficAmount(''); setTrafficComment(''); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || '100GB2MB-30d'); setIsManageModalOpen(true); }} 
+                  onClick={() => { setSelectedUser(u); setManageTab('overview'); setTrafficAmount(''); setTrafficComment(''); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); }} 
                   className="hover:bg-slate-50/80 transition-all duration-150 border-b border-gray-200 cursor-pointer even:bg-gray-50/20 text-[14px]"
                 >
                   <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="rounded border-gray-400 text-sky-600 focus:ring-sky-500 w-4 h-4" /></td>
@@ -239,8 +246,11 @@ export default function UsersPage() {
                     <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" value={editExpiration} onChange={e=>setEditExpiration(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
                     <div>
                       <label className="block font-bold text-gray-600 mb-1">Select Profile</label>
-                      <select value={editProfile} onChange={e=>setEditProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 focus:outline-none">
-                        <option value="100GB2MB-30d">100GB2MB-30d</option>
+                      <select value={editProfile} onChange={e=>setEditProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300 focus:outline-none">
+                        <option value="">-- Choose Profile --</option>
+                        {profilesList.map((p, idx) => (
+                          <option key={idx} value={p.name}>{p.name}</option>
+                        ))}
                       </select>
                     </div>
                     <div className="md:col-span-2"><label className="block font-bold text-gray-600 mb-1">Note</label><textarea value={editNote} onChange={e=>setEditNote(e.target.value)} rows={2} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
