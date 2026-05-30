@@ -9,48 +9,44 @@ export async function PUT(req: Request, { params }: { params: any }) {
     if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
 
     const body = await req.json();
+    const password = body.password || '';
+    const staticIp = body.staticIp || '';
+    const firstName = body.name || '';
+    const lastName = body.family || '';
+    const phone = body.phone || '';
+    const email = body.email || '';
+    const address = body.address || '';
+    const nationalId = body.nationalId || '';
+    const expiration = body.expiration || '';
+    const group = body.group || '';
 
-    // اگر درخواست فقط برای اضافه کردن ترافیک باشد (Add Traffic)
-    if (body.traffic && Object.keys(body).length <= 2) {
-      const addedMegabytes = parseFloat(body.traffic) || 0;
-      const addedBytes = addedMegabytes * 1024 * 1024;
+    const finalExpiration = expiration && expiration !== '' ? expiration : '2026-12-31';
 
-      // دریافت حجم فعلی
-      const userRows: any = await query(`SELECT dataLimitBytes FROM dashboard_users WHERE username = ?`, [username]);
-      const currentBytes = parseInt(userRows[0]?.dataLimitBytes) || 0;
-      
-      const newBytes = currentBytes + addedBytes;
-      const newString = `${(newBytes / 1024 / 1024).toFixed(2)} MB`;
+    await query(
+      `UPDATE dashboard_users SET 
+        password = ?, staticIp = ?, firstName = ?, lastName = ?, phone = ?, 
+        email = ?, address = ?, nationalId = ?, expiration = ?, \`group\` = ? 
+       WHERE username = ?`,
+      [password, staticIp, firstName, lastName, phone, email, address, nationalId, finalExpiration, group, username]
+    );
 
-      await query(`UPDATE dashboard_users SET dataLimitBytes = ?, dataLimitString = ?, accountStatus = 'Active' WHERE username = ?`, [newBytes, newString, username]);
-      await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'`, [username]);
-
-      return NextResponse.json({ success: true, message: 'Traffic added successfully' });
+    if (group !== '') {
+      await query(`UPDATE radusergroup SET groupname = ? WHERE username = ?`, [group, username]);
     }
 
-    // کدهای پیش فرض ویرایش معمولی کاربر در پنل شما
-    const { firstName, lastName, phone, password, staticIp, speedLimit } = body;
-    await query(`
-      UPDATE dashboard_users 
-      SET firstName = ?, lastName = ?, phone = ?, password = ?, staticIp = ?, speedLimit = ?
-      WHERE username = ?
-    `, [firstName || '', lastName || '', phone || '', password, staticIp || null, speedLimit || 'Default', username]);
+    if (finalExpiration && finalExpiration !== '2026-12-31') {
+      const formattedDate = new Date(finalExpiration);
+      if (!isNaN(formattedDate.getTime())) {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const radiusDate = `${formattedDate.getDate().toString().padStart(2, '0')} ${months[formattedDate.getMonth()]} ${formattedDate.getFullYear()}`;
+        await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Expiration'`, [username]);
+        await query(`INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Expiration', '==', ?)`, [username, radiusDate]);
+      }
+    } else {
+      await query(`DELETE FROM radcheck WHERE username = ? AND attribute = 'Expiration'`, [username]);
+    }
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: Request, { params }: { params: any }) {
-  try {
-    await initDb();
-    const resolvedParams = await params;
-    const username = resolvedParams?.username;
-    await query(`DELETE FROM dashboard_users WHERE username = ?`, [username]);
-    await query(`DELETE FROM radcheck WHERE username = ?`, [username]);
-    await query(`DELETE FROM radreply WHERE username = ?`, [username]);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'User updated successfully' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
