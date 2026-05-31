@@ -150,6 +150,9 @@ export default function UsersPage() {
               <th className="p-3 w-10"><input type="checkbox" /></th>
               <th className="p-3 w-16">Status</th>
               <th className="p-3">Username</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Family</th>
+              <th className="p-3">Static IP</th>
               <th className="p-3">Expiration</th>
               <th className="p-3">Parent</th>
               <th className="p-3">Remaining Traffic</th>
@@ -179,6 +182,9 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4 font-bold text-gray-900">{u.username}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName || '-'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.lastName || '-'}</td>
+                  <td className="py-3 px-4 text-blue-600 font-semibold">{u.staticIp || '-'}</td>
                   <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.replace('T', ' ').substring(0, 19) : 'Permanent'}</td>
                   <td className="py-3 px-4 text-gray-600 font-medium">{u.parent || 'admin'}</td>
                   <td className="py-3 px-4"><span className="font-bold text-slate-800">{u.dataLimitString || 'Unlimited'}</span></td>
