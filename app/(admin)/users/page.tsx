@@ -376,14 +376,27 @@ export default function UsersPage() {
               <h3 className="font-bold text-lg text-gray-700">Create New User</h3>
               <button onClick={() => setIsAddUserModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
             </div>
-            <div className="p-4 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Username</label>
-                <input type="text" id="new_user_name" className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900" placeholder="Enter username" />
-              </div>
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Password</label>
-                <input type="text" id="new_user_pass" className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900" placeholder="Enter password" />
+            <div className="p-4 space-y-4 text-xs max-h-[380px] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block font-bold text-gray-600 mb-1">Username *</label><input type="text" id="new_user_name" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" placeholder="Enter username" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Password *</label><input type="text" id="new_user_pass" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" placeholder="Enter password" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">First Name</label><input type="text" id="new_user_firstname" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Last Name</label><input type="text" id="new_user_lastname" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" id="new_user_phone" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" id="new_user_email" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Physical Address</label><input type="text" id="new_user_address" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" id="new_user_nationalid" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" id="new_user_staticip" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
+                <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" id="new_user_expiration" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" defaultValue="2026-12-31" /></div>
+                <div className="md:col-span-2">
+                  <label className="block font-bold text-gray-600 mb-1">Select Profile</label>
+                  <select id="new_user_profile" className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300 focus:outline-none">
+                    <option value="">-- Choose Profile --</option>
+                    {profilesList.map((p, idx) => (
+                      <option key={idx} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="p-4 bg-white flex justify-end gap-2 border-t">
@@ -396,7 +409,7 @@ export default function UsersPage() {
                   const res = await fetch('/api/users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p })
+                    body: JSON.stringify({ username: u, password: p, firstName: (document.getElementById("new_user_firstname") as HTMLInputElement)?.value || "", lastName: (document.getElementById("new_user_lastname") as HTMLInputElement)?.value || "", phone: (document.getElementById("new_user_phone") as HTMLInputElement)?.value || "", email: (document.getElementById("new_user_email") as HTMLInputElement)?.value || "", address: (document.getElementById("new_user_address") as HTMLInputElement)?.value || "", nationalId: (document.getElementById("new_user_nationalid") as HTMLInputElement)?.value || "", staticIp: (document.getElementById("new_user_staticip") as HTMLInputElement)?.value || "", expiration: (document.getElementById("new_user_expiration") as HTMLInputElement)?.value || "", group: (document.getElementById("new_user_profile") as HTMLSelectElement)?.value || "" })
                   });
                   if (res.ok) { alert('User Created Successfully!'); setIsAddUserModalOpen(false); fetchUsers(); } else { alert('Error creating user'); }
                 } catch (e) { alert('Network Error'); }
