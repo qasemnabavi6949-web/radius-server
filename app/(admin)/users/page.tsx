@@ -36,6 +36,7 @@ export default function UsersPage() {
   const [editExpiration, setEditExpiration] = useState('');
   const [editProfile, setEditProfile] = useState('');
   const [profilesList, setProfilesList] = useState<any[]>([]);
+  const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -71,10 +72,10 @@ export default function UsersPage() {
     } catch (e) {}
   };
 
-    useEffect(() => { fetchUsers(); fetchProfiles(); }, []);
-  
-  useEffect(() => { 
-    if (manageTab === 'traffic') fetchUserTraffic(); 
+  useEffect(() => { fetchUsers(); fetchProfiles(); }, []);
+
+  useEffect(() => {
+    if (manageTab === 'traffic') fetchUserTraffic();
     if (manageTab === 'history') fetchUserHistory();
   }, [manageTab, selectedUser, userTrafficYear, userTrafficMonth]);
 
@@ -97,23 +98,6 @@ export default function UsersPage() {
 
   const countStatus = (st: string) => users.filter(u => getUserStatus(u) === st).length;
 
-  const handleOverviewAction = async (actionType: string, payload?: any) => {
-    let url = `/api/users/${selectedUser.username}/${actionType}`;
-    try {
-      const res = await fetch(url, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload ? JSON.stringify(payload) : null
-      });
-      if (res.ok) {
-        alert('Success!');
-        setIsManageModalOpen(false);
-        setIsTrafficModalOpen(false);
-        fetchUsers();
-      }
-    } catch (e) {}
-  };
-
   const handleSaveUserEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -129,6 +113,7 @@ export default function UsersPage() {
       if (res.ok) { alert("Saved successfully!"); setIsManageModalOpen(false); fetchUsers(); }
     } catch (err) {}
   };
+
   return (
     <div className="space-y-4 p-6 bg-gray-50 min-h-screen text-gray-800 text-sm">
       <div className="flex justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
@@ -138,9 +123,64 @@ export default function UsersPage() {
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-400 rounded-sm"></span> Depleted ({countStatus('Depleted')})</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-sm"></span> Disabled ({countStatus('Disabled')})</div>
         </div>
-        <button onClick={() => setIsAddUserModalOpen(true)} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-bold text-xs shadow transition flex items-center gap-1">
-          <Plus className="w-4 h-4" /> Add User
-        </button>
+        
+        <div className="relative">
+          <button 
+            onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)} 
+            className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-bold text-xs shadow transition flex items-center gap-1"
+          >
+            🔧 Actions <span className="text-[10px]">▼</span>
+          </button>
+          
+          {isActionsDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1 text-xs font-semibold text-gray-700">
+              <button onClick={() => { setIsAddUserModalOpen(true); setIsActionsDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2 text-sky-600"><span className="font-bold">+</span> New User</button>
+              <hr className="border-gray-100" />
+              <button onClick={() => { if(selectedUser) { setManageTab('edit'); setIsManageModalOpen(true); } else { alert('Please select a user first from table'); } setIsActionsDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2">📝 Edit User</button>
+              <button onClick={() => { if(selectedUser) { setIsTrafficModalOpen(true); } else { alert('Please select a user first from table'); } setIsActionsDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2">📊 Add Traffic</button>
+              <button onClick={() => { if(selectedUser) { setManageTab('edit'); setIsManageModalOpen(true); } else { alert('Please select a user first from table'); } setIsActionsDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2">🔑 Change Password</button>
+              <button onClick={() => { if(selectedUser) { setManageTab('edit'); setIsManageModalOpen(true); } else { alert('Please select a user first from table'); } setIsActionsDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2">🧩 Change Profile</button>
+              <hr className="border-gray-100" />
+              <button onClick={async () => {
+                if(!selectedUser) return alert('Please select a user first');
+                if(confirm(`Are you sure you want to ENABLE user: ${selectedUser.username}?`)) {
+                  try {
+                    const res = await fetch(`/api/users/${selectedUser.username}`, {
+                      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountStatus: 'Active', username: selectedUser.username, password: selectedUser.password, group: selectedUser.group })
+                    });
+                    if(res.ok) { alert('User Enabled Successfully!'); fetchUsers(); }
+                  } catch(e) {}
+                }
+                setIsActionsDropdownOpen(false);
+              }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2 text-emerald-600">▶️ Enable User</button>
+              <button onClick={async () => {
+                if(!selectedUser) return alert('Please select a user first');
+                if(confirm(`Are you sure you want to DISABLE user: ${selectedUser.username}?`)) {
+                  try {
+                    const res = await fetch(`/api/users/${selectedUser.username}`, {
+                      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountStatus: 'Disabled', username: selectedUser.username, password: selectedUser.password, group: selectedUser.group })
+                    });
+                    if(res.ok) { alert('User Disabled and Disconnected!'); fetchUsers(); }
+                  } catch(e) {}
+                }
+                setIsActionsDropdownOpen(false);
+              }} className="w-full text-left px-4 py-2 hover:bg-slate-100 flex items-center gap-2 text-rose-600">⏸️ Disable User</button>
+              <hr className="border-gray-100" />
+              <button onClick={async () => {
+                if(!selectedUser) return alert('Please select a user first');
+                if(confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE user: ${selectedUser.username}?`)) {
+                  try {
+                    const res = await fetch(`/api/users/${selectedUser.username}`, { method: 'DELETE' });
+                    if(res.ok) { alert('User completely deleted from FreeRADIUS and Dashboard!'); setSelectedUser(null); fetchUsers(); } else { alert('Delete failed'); }
+                  } catch(e) {}
+                }
+                setIsActionsDropdownOpen(false);
+              }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 font-bold">🗑️ Delete User</button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
@@ -164,32 +204,36 @@ export default function UsersPage() {
             {users.map((u, i) => {
               const st = getUserStatus(u);
               return (
-                <tr 
-                  key={i} 
-                  onClick={() => { setSelectedUser(u); setManageTab('overview'); setTrafficAmount(''); setTrafficComment(''); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.name || ''); setEditFamily(u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); }} 
-                  className="hover:bg-slate-50/80 transition-all duration-150 border-b border-gray-200 cursor-pointer even:bg-gray-50/20 text-[14px]"
+                <tr
+                  key={i}
+                  onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
+                  className={`hover:bg-slate-50 transition border-b border-gray-200 cursor-pointer text-[14px] ${selectedUser?.username === u.username ? 'bg-sky-50' : ''}`}
                 >
-                  <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="rounded border-gray-400 text-sky-600 focus:ring-sky-500 w-4 h-4" /></td>
+                  <td className="p-3"><input type="checkbox" checked={selectedUser?.username === u.username} readOnly /></td>
                   <td className="py-3 px-4">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold tracking-wide uppercase border ${
+                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold uppercase border ${
                       st === 'Online' ? 'bg-blue-50 text-blue-700 border-blue-300' :
-                      st === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
-                      st === 'Depleted' ? 'bg-amber-50 text-amber-700 border-amber-300' :
-                      'bg-rose-50 text-rose-700 border-rose-300'
+                      st === 'Active' ? 'bg-green-50 text-green-700 border-green-300' :
+                      st === 'Depleted' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                      'bg-red-50 text-red-700 border-red-300'
                     }`}>
-                      <span className={`w-3 h-3 rounded-full ${st === 'Online' ? 'bg-blue-600 animate-pulse' : st === 'Active' ? 'bg-emerald-600' : st === 'Depleted' ? 'bg-amber-600' : 'bg-rose-600'}`}></span>
-                      {st}
+                      <span className={`w-3 h-3 rounded-full ${
+                        st === 'Online' ? 'bg-blue-600' :
+                        st === 'Active' ? 'bg-green-600' :
+                        st === 'Depleted' ? 'bg-yellow-500' :
+                        'bg-red-600'
+                      }`}></span>{st}
                     </span>
                   </td>
                   <td className="py-3 px-4 font-bold text-gray-900">{u.username}</td>
-                  <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName || '-'}</td>
-                  <td className="py-3 px-4 text-gray-800 font-medium">{u.lastName || '-'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName || u.name || '-'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.lastName || u.family || '-'}</td>
                   <td className="py-3 px-4 text-blue-600 font-semibold">{u.staticIp || '-'}</td>
-                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.replace('T', ' ').substring(0, 19) : 'Permanent'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.split('T')[0] : 'Permanent'}</td>
                   <td className="py-3 px-4 text-gray-600 font-medium">{u.parent || 'admin'}</td>
-                  <td className="py-3 px-4"><span className="font-bold text-slate-800">{u.dataLimitString || 'Unlimited'}</span></td>
-                  <td className="py-3 px-4"><span className="font-bold text-slate-800">{u.daily_usage || '0.00 MB'}</span></td>
-                  <td className="py-3 px-4"><span className={`font-bold ${calculateDaysValue(u.expiration).includes('Expired') ? 'text-rose-600' : 'text-sky-700'}`}>{calculateDaysValue(u.expiration)}</span></td>
+                  <td className="py-3 px-4 font-bold text-slate-800">{u.dataLimitString || 'Unlimited'}</td>
+                  <td className="py-3 px-4 font-bold text-slate-800">{u.daily_usage || '0.00 MB'}</td>
+                  <td className="py-3 px-4 font-bold text-sky-700">{calculateDaysValue(u.expiration)}</td>
                 </tr>
               );
             })}
@@ -198,120 +242,52 @@ export default function UsersPage() {
       </div>
       {isManageModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden text-gray-800 flex flex-col h-[550px]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[520px] overflow-hidden text-gray-800">
             <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-              <div className="flex items-center gap-2 text-sky-600 font-bold text-lg">
-                <span>Manage User: {selectedUser?.username}</span>
-              </div>
-              <button onClick={() => setIsManageModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
+              <span className="font-bold text-lg text-sky-600">User Control Panel: {selectedUser?.username}</span>
+              <button onClick={() => setIsManageModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
             </div>
-
-            <div className="flex border-b bg-white px-4 text-xs font-semibold text-gray-500 gap-6">
-              <button onClick={() => setManageTab('overview')} className={`py-2 border-b-2 ${manageTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Overview</button>
-              <button onClick={() => setManageTab('edit')} className={`py-2 border-b-2 ${manageTab === 'edit' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Edit</button>
-              <button onClick={() => setManageTab('traffic')} className={`py-2 border-b-2 ${manageTab === 'traffic' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>Traffic</button>
-              <button onClick={() => setManageTab('history')} className={`py-2 border-b-2 ${manageTab === 'history' ? 'border-sky-500 text-sky-600' : 'border-transparent hover:text-gray-700'}`}>History</button>
+            <div className="flex border-b bg-white px-4 text-xs font-semibold gap-6">
+              <button onClick={() => setManageTab('overview')} className={`py-2 border-b-2 ${manageTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>Overview</button>
+              <button onClick={() => setManageTab('edit')} className={`py-2 border-b-2 ${manageTab === 'edit' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>Edit Profile</button>
             </div>
-
             <div className="flex-1 p-6 overflow-y-auto bg-white">
               {manageTab === 'overview' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                  <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => handleOverviewAction('status')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Zap className="w-5 h-5" /><span className="text-[10px] font-bold">Toggle Status</span></button>
-                    <button onClick={() => handleOverviewAction('charge')} className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><RefreshCw className="w-5 h-5" /><span className="text-[10px] font-bold">Charge User</span></button>
-                    <button onClick={() => setManageTab('edit')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Package className="w-5 h-5" /><span className="text-[10px] font-bold">Edit Profile</span></button>
-                    <button onClick={() => handleOverviewAction('disconnect')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><WifiOff className="w-5 h-5" /><span className="text-[10px] font-bold">Disconnect</span></button>
-                    <button className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Activity className="w-5 h-5" /><span className="text-[10px] font-bold">Reset Stats</span></button>
-                    <button onClick={() => setManageTab('edit')} className="p-3 bg-slate-700 hover:bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition"><Edit2 className="w-5 h-5" /><span className="text-[10px] font-bold">Rename</span></button>
-                    <button className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-lg flex flex-col items-center justify-center text-center gap-2 shadow-sm transition col-span-1"><Trash2 className="w-5 h-5" /><span className="text-[10px] font-bold">Delete</span></button>
-                    <button onClick={() => { setIsTrafficModalOpen(true); }} className="p-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex col-span-3 items-center justify-center text-center gap-2 shadow-sm transition font-bold text-xs"><Plus className="w-4 h-4" /> + Add Traffic (MB)</button>
+                <div className="space-y-4 text-xs">
+                  <div className="border rounded-xl p-4 bg-gray-50 grid grid-cols-2 gap-4 font-medium">
+                    <div>Username: <span className="font-bold">{selectedUser?.username}</span></div>
+                    <div>Static IP: <span className="text-blue-600 font-bold">{selectedUser?.staticIp || 'Not Set'}</span></div>
+                    <div>Profile: <span className="font-bold">{selectedUser?.group || '-'}</span></div>
+                    <div>Expiration: <span className="font-bold">{selectedUser?.expiration || 'Permanent'}</span></div>
                   </div>
-
-                  <div className="border border-gray-100 rounded-xl p-4 bg-gray-50 text-xs space-y-3 font-medium">
-                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Username / Name</span><span className="text-gray-900 font-bold">{selectedUser?.username}</span></div>
-                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Phone Number</span><span className="text-gray-900">{selectedUser?.phone || 'Not Set'}</span></div>
-                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Static IP</span><span className="text-blue-600 font-semibold">{selectedUser?.staticIp || 'Not Set'}</span></div>
-                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Profile / Group</span><span className="text-blue-600 font-bold">{selectedUser?.group}</span></div>
-                    <div className="flex justify-between border-b pb-1.5"><span className="text-gray-500">Expiration</span><span className="text-gray-900 font-bold">{selectedUser?.expiration ? selectedUser.expiration.replace('T', ' ').substring(0, 19) : 'Permanent'}</span></div>
-                    <div className="flex justify-between pt-1"><span className="text-gray-500">Remaining Traffic</span><span className="text-gray-900 font-bold bg-white px-2 py-0.5 rounded shadow-sm border border-gray-100">{selectedUser?.dataLimitString || '0.00 MB'}</span></div>
+                  <div className="mt-6 border-t pt-4">
+                    <h4 className="font-bold text-gray-700 mb-3 text-sm">Account Operations:</h4>
+                    <div className="flex flex-wrap gap-3">
+                      <button type="button" onClick={() => { setIsTrafficModalOpen(true); setIsManageModalOpen(false); }} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-bold shadow transition flex items-center gap-1">📊 Charge Traffic</button>
+                      <button type="button" onClick={async () => {
+                        if(confirm(`Enable user: ${selectedUser?.username}?`)) {
+                          await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Active', username: selectedUser?.username }) });
+                          alert('User Enabled Successfully!'); setIsManageModalOpen(false); fetchUsers();
+                        }
+                      }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow transition">▶️ Enable</button>
+                      <button type="button" onClick={async () => {
+                        if(confirm(`Disable user: ${selectedUser?.username}?`)) {
+                          await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Disabled', username: selectedUser?.username }) });
+                          alert('User Disabled!'); setIsManageModalOpen(false); fetchUsers();
+                        }
+                      }} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold shadow transition">⏸️ Disable</button>
+                    </div>
                   </div>
                 </div>
               )}
               {manageTab === 'edit' && (
-                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs max-w-2xl">
+                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block font-bold text-gray-600 mb-1">Username</label><input type="text" value={editUsername} disabled className="w-full px-3 py-1.5 border rounded-lg bg-gray-100 text-gray-500" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" placeholder="Leave empty to keep old" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">First Name</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Last Name</label><input type="text" value={editFamily} onChange={e=>setEditFamily(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" value={editEmail} onChange={e=>setEditEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Address</label><input type="text" value={editAddress} onChange={e=>setEditAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" value={editNationalId} onChange={e=>setEditNationalId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" value={editStaticIp} onChange={e=>setEditStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" value={editExpiration} onChange={e=>setEditExpiration(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
-                    <div>
-                      <label className="block font-bold text-gray-600 mb-1">Select Profile</label>
-                      <select value={editProfile} onChange={e=>setEditProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300 focus:outline-none">
-                        <option value="">-- Choose Profile --</option>
-                        {profilesList.map((p, idx) => (
-                          <option key={idx} value={p.name}>{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-2"><label className="block font-bold text-gray-600 mb-1">Note</label><textarea value={editNote} onChange={e=>setEditNote(e.target.value)} rows={2} className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" value={editStaticIp} onChange={e=>setEditStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                   </div>
                   <button type="submit" className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Save Changes</button>
                 </form>
-              )}
-              {manageTab === 'traffic' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border">
-                    <h4 className="font-bold text-gray-700 text-xs">Daily Usage Reports</h4>
-                    <div className="flex gap-2">
-                      <select value={userTrafficYear} onChange={e=>setUserTrafficYear(e.target.value)} className="px-2 py-1 border rounded bg-white text-xs text-gray-800">
-                        <option value="2025">2025</option>
-                        <option value="2026">2026</option>
-                      </select>
-                      <select value={userTrafficMonth} onChange={e=>setUserTrafficMonth(e.target.value)} className="px-2 py-1 border rounded bg-white text-xs text-gray-800">
-                        {Array.from({length:12}).map((_,m)=> {
-                          const v = (m+1).toString().padStart(2,'0');
-                          return <option key={v} value={v}>{v}</option>
-                        })}
-                      </select>
-                    </div>
-                  </div>
-                  {isUserTrafficLoading ? (
-                    <div className="p-10 text-center text-gray-400 font-semibold">Loading charts...</div>
-                  ) : (
-                    <div className="h-64 border rounded-xl p-2 bg-gray-50">
-                      <UserTrafficChart data={userTrafficData} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {manageTab === 'history' && (
-                <div className="space-y-3 text-xs">
-                  <h4 className="font-bold text-gray-700 border-b pb-2">User Connection History</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border border-gray-100 rounded-lg">
-                      <thead className="bg-gray-50 text-gray-600 font-bold border-b">
-                        <tr><th className="p-2">Action</th><th className="p-2">Details/Comment</th><th className="p-2">Date</th></tr>
-                      </thead>
-                      <tbody>
-                        {historyData.map((h: any, idx: number) => (
-                          <tr key={idx} className="border-b hover:bg-gray-50">
-                            <td className="p-2 font-semibold text-sky-600">{h.action}</td>
-                            <td className="p-2 text-gray-700">{h.details || h.comment || 'N/A'}</td>
-                            <td className="p-2 text-gray-500">{h.date ? new Date(h.date).toLocaleString() : 'N/A'}</td>
-                          </tr>
-                        ))}
-                        {historyData.length === 0 && <tr><td colSpan={3} className="text-center p-4 text-gray-400">No history data available for this cycle.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               )}
             </div>
           </div>
@@ -320,56 +296,18 @@ export default function UsersPage() {
 
       {isTrafficModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-gray-800">
-            <div className="p-4 border-b flex justify-between items-center bg-white">
-              <h3 className="font-bold text-lg text-gray-700">Add/Remove Traffic</h3>
-              <button onClick={() => setIsTrafficModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-4 space-y-4 text-gray-800">
+            <h3 className="font-bold text-lg text-sky-600">Add Traffic for {selectedUser?.username}</h3>
+            <div>
+              <label className="block font-bold text-gray-600 text-xs mb-1">Amount (MB)</label>
+              <input type="number" value={trafficAmount} onChange={e=>setTrafficAmount(e.target.value)} placeholder="0" className="w-full px-3 py-2 border rounded-lg text-gray-900 bg-white border-gray-300 font-bold" />
             </div>
-            <div className="p-4 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Username</label>
-                <input type="text" value={selectedUser?.username || ''} disabled className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 font-semibold" />
-              </div>
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Target</label>
-                <select value={trafficTarget} onChange={e => setTrafficTarget(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-800 focus:outline-none">
-                  <option value="all">Download + Upload</option>
-                  <option value="down">Only Download</option>
-                  <option value="up">Only Upload</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Amount (MB)</label>
-                <input type="number" value={trafficAmount} onChange={e => setTrafficAmount(e.target.value)} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 font-bold" />
-              </div>
-              <div>
-                <label className="block font-bold text-gray-600 mb-1">Comment</label>
-                <textarea value={trafficComment} onChange={e => setTrafficComment(e.target.value)} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none" />
-              </div>
-            </div>
-            <div className="p-4 bg-white flex justify-end gap-2 border-t">
-              <button onClick={() => setIsTrafficModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Dismiss</button>
+            <div className="flex justify-end gap-2 text-xs">
+              <button onClick={() => setIsTrafficModalOpen(false)} className="px-4 py-2 border rounded border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">Dismiss</button>
               <button onClick={async () => {
-                const amt = parseFloat(trafficAmount) || 0;
-                if (amt === 0) { alert('Please enter an amount'); return; }
-                try {
-                  const res = await fetch(`/api/users/${selectedUser.username}/add-traffic`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ traffic: amt, target: trafficTarget, comment: trafficComment })
-                  });
-                  if (res.ok) {
-                    alert('Traffic Added Successfully!');
-                    setIsManageModalOpen(false);
-                    setIsTrafficModalOpen(false);
-                    fetchUsers();
-                  } else {
-                    alert('Server Error!');
-                  }
-                } catch (e) {
-                  alert('Network Error!');
-                }
-              }} className="px-4 py-2 bg-sky-400 hover:bg-sky-500 text-white rounded text-sm font-medium shadow-sm transition">Submit</button>
+                const res = await fetch(`/api/users/${selectedUser.username}/add-traffic`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ traffic: trafficAmount }) });
+                if (res.ok) { alert('Traffic Added Successfully!'); setIsTrafficModalOpen(false); fetchUsers(); }
+              }} className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Submit</button>
             </div>
           </div>
         </div>
@@ -377,12 +315,12 @@ export default function UsersPage() {
 
       {isAddUserModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-gray-800">
-            <div className="p-4 border-b flex justify-between items-center bg-white">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden text-gray-800">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
               <h3 className="font-bold text-lg text-gray-700">Create New User</h3>
               <button onClick={() => setIsAddUserModalOpen(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl">×</button>
             </div>
-            <div className="p-4 space-y-4 text-xs max-h-[380px] overflow-y-auto">
+            <div className="p-4 space-y-4 text-xs max-h-[380px] overflow-y-auto bg-white">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="block font-bold text-gray-600 mb-1">Username *</label><input type="text" id="new_user_name" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" placeholder="Enter username" /></div>
                 <div><label className="block font-bold text-gray-600 mb-1">Password *</label><input type="text" id="new_user_pass" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" placeholder="Enter password" /></div>
@@ -405,21 +343,28 @@ export default function UsersPage() {
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-white flex justify-end gap-2 border-t">
+            <div className="p-4 bg-white flex justify-end gap-2 border-t text-xs">
               <button onClick={() => setIsAddUserModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">Dismiss</button>
               <button onClick={async () => {
                 const u = (document.getElementById('new_user_name') as HTMLInputElement)?.value || '';
                 const p = (document.getElementById('new_user_pass') as HTMLInputElement)?.value || '';
-                if (!u || !p) { alert('Please fill all fields'); return; }
-                try {
-                  const res = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p, firstName: (document.getElementById("new_user_firstname") as HTMLInputElement)?.value || "", lastName: (document.getElementById("new_user_lastname") as HTMLInputElement)?.value || "", phone: (document.getElementById("new_user_phone") as HTMLInputElement)?.value || "", email: (document.getElementById("new_user_email") as HTMLInputElement)?.value || "", address: (document.getElementById("new_user_address") as HTMLInputElement)?.value || "", nationalId: (document.getElementById("new_user_nationalid") as HTMLInputElement)?.value || "", staticIp: (document.getElementById("new_user_staticip") as HTMLInputElement)?.value || "", expiration: (document.getElementById("new_user_expiration") as HTMLInputElement)?.value || "", group: (document.getElementById("new_user_profile") as HTMLSelectElement)?.value || "" })
-                  });
-                  if (res.ok) { alert('User Created Successfully!'); setIsAddUserModalOpen(false); fetchUsers(); } else { alert('Error creating user'); }
-                } catch (e) { alert('Network Error'); }
-              }} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded text-sm font-medium shadow-sm transition">Create</button>
+                const fn = (document.getElementById('new_user_firstname') as HTMLInputElement)?.value || '';
+                const ln = (document.getElementById('new_user_lastname') as HTMLInputElement)?.value || '';
+                const ph = (document.getElementById('new_user_phone') as HTMLInputElement)?.value || '';
+                const em = (document.getElementById('new_user_email') as HTMLInputElement)?.value || '';
+                const ad = (document.getElementById('new_user_address') as HTMLInputElement)?.value || '';
+                const ni = (document.getElementById('new_user_nationalid') as HTMLInputElement)?.value || '';
+                const ip = (document.getElementById('new_user_staticip') as HTMLInputElement)?.value || '';
+                const ex = (document.getElementById('new_user_expiration') as HTMLInputElement)?.value || '';
+                const pr = (document.getElementById('new_user_profile') as HTMLSelectElement)?.value || '';
+                
+                if(!u || !p) { alert('Please enter Username and Password'); return; }
+                const res = await fetch('/api/users', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ username: u, password: p, firstName: fn, lastName: ln, phone: ph, email: em, address: ad, nationalId: ni, staticIp: ip, expiration: ex, group: pr })
+                });
+                if (res.ok) { alert('User Created Successfully!'); setIsAddUserModalOpen(false); fetchUsers(); }
+              }} className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Create</button>
             </div>
           </div>
         </div>
