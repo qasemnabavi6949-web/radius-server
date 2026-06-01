@@ -240,54 +240,115 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
       {isManageModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[520px] overflow-hidden text-gray-800">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full flex flex-col h-[550px] overflow-hidden text-gray-800">
             <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
               <span className="font-bold text-lg text-sky-600">User Control Panel: {selectedUser?.username}</span>
               <button onClick={() => setIsManageModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</button>
             </div>
+
             <div className="flex border-b bg-white px-4 text-xs font-semibold gap-6">
               <button onClick={() => setManageTab('overview')} className={`py-2 border-b-2 ${manageTab === 'overview' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>Overview</button>
               <button onClick={() => setManageTab('edit')} className={`py-2 border-b-2 ${manageTab === 'edit' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>Edit Profile</button>
+              <button onClick={() => setManageTab('traffic')} className={`py-2 border-b-2 ${manageTab === 'traffic' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>Traffic Report</button>
+              <button onClick={() => setManageTab('history')} className={`py-2 border-b-2 ${manageTab === 'history' ? 'border-sky-500 text-sky-600' : 'border-transparent text-gray-500'}`}>History Log</button>
             </div>
+
             <div className="flex-1 p-6 overflow-y-auto bg-white">
               {manageTab === 'overview' && (
-                <div className="space-y-4 text-xs">
-                  <div className="border rounded-xl p-4 bg-gray-50 grid grid-cols-2 gap-4 font-medium">
-                    <div>Username: <span className="font-bold">{selectedUser?.username}</span></div>
-                    <div>Static IP: <span className="text-blue-600 font-bold">{selectedUser?.staticIp || 'Not Set'}</span></div>
-                    <div>Profile: <span className="font-bold">{selectedUser?.group || '-'}</span></div>
-                    <div>Expiration: <span className="font-bold">{selectedUser?.expiration || 'Permanent'}</span></div>
-                  </div>
-                  <div className="mt-6 border-t pt-4">
-                    <h4 className="font-bold text-gray-700 mb-3 text-sm">Account Operations:</h4>
-                    <div className="flex flex-wrap gap-3">
-                      <button type="button" onClick={() => { setIsTrafficModalOpen(true); setIsManageModalOpen(false); }} className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-bold shadow transition flex items-center gap-1">📊 Charge Traffic</button>
-                      <button type="button" onClick={async () => {
-                        if(confirm(`Enable user: ${selectedUser?.username}?`)) {
-                          await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Active', username: selectedUser?.username }) });
-                          alert('User Enabled Successfully!'); setIsManageModalOpen(false); fetchUsers();
-                        }
-                      }} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow transition">▶️ Enable</button>
-                      <button type="button" onClick={async () => {
-                        if(confirm(`Disable user: ${selectedUser?.username}?`)) {
-                          await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Disabled', username: selectedUser?.username }) });
-                          alert('User Disabled!'); setIsManageModalOpen(false); fetchUsers();
-                        }
-                      }} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold shadow transition">⏸️ Disable</button>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs text-gray-800">
+                  <div className="lg:col-span-5 space-y-4">
+                    <div className="flex items-center gap-4 border p-3 rounded-xl bg-white shadow-sm">
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 font-bold text-xl">👤</div>
+                      <div className="font-semibold space-y-1">
+                        <div className="text-gray-900 font-bold text-sm">👤 {selectedUser?.firstName || selectedUser?.name || 'Goli'}</div>
+                        <div className="text-gray-500">📞 {selectedUser?.phone || 'N/A'}</div>
+                        <div className="text-gray-500">📍 {selectedUser?.address || 'N/A'}</div>
+                        <div className="text-gray-500">✉️ {selectedUser?.email || 'N/A'}</div>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <button type="button" onClick={async () => { if(confirm(`Activate user: ${selectedUser?.username}?`)) { await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Active' }) }); alert('User Activated!'); setIsManageModalOpen(false); fetchUsers(); } }} className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">⚡ Activate</button>
+                      <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">📄 Issue Invoice</button>
+                      <button type="button" onClick={() => { setIsTrafficModalOpen(true); setIsManageModalOpen(false); }} className="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🧩 Change Profile</button>
+                      <button type="button" onClick={async () => { if(confirm(`Disconnect user: ${selectedUser?.username}?`)) { await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Disabled' }) }); alert('User Disconnected!'); setIsManageModalOpen(false); fetchUsers(); } }} className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🔌 Disconnect</button>
+                      <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">💵 Deposit</button>
+                      <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">💸 Withdrawal</button>
+                      <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🔄 Reset Traffic</button>
+                      <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">📝 Rename</button>
+                      <button type="button" onClick={async () => { if(confirm(`⚠️ WARNING: PERMANENTLY DELETE user: ${selectedUser?.username}?`)) { const res = await fetch(`/api/users/${selectedUser?.username}`, { method: 'DELETE' }); if(res.ok) { alert('User completely deleted!'); setIsManageModalOpen(false); setSelectedUser(null); fetchUsers(); } } }} className="flex flex-col items-center justify-center p-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🗑️ Delete</button>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-7 border rounded-xl bg-white shadow-sm overflow-hidden font-medium">
+                    <div className="flex justify-between border-b p-2.5"><span>Username</span><span className="font-bold text-gray-900">{selectedUser?.username}</span></div>
+                    <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Password</span><span className="font-bold text-gray-900">{selectedUser?.password || '1234'}</span></div>
+                    <div className="flex justify-between border-b p-2.5"><span>Balance</span><span className="font-bold text-emerald-600">$0.00</span></div>
+                    <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Owner</span><span className="font-bold text-gray-700">{selectedUser?.parent || 'admin'}</span></div>
+                    <div className="flex justify-between border-b p-2.5"><span>Profile</span><span className="font-bold text-blue-600">{selectedUser?.group || '100GB2MB-30d'}</span></div>
+                    <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Expiration</span><span className="font-bold text-gray-900">{selectedUser?.expiration || 'Permanent'}</span></div>
+                    <div className="flex justify-between border-b p-2.5"><span>Debt Days</span><span className="font-bold text-gray-900">0</span></div>
+                    <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Incorrect PIN tries</span><span className="font-bold text-gray-900">0</span></div>
+                    <div className="flex justify-between border-b p-2.5"><span>Status</span><span className={`font-bold ${selectedUser?.accountStatus === 'Disabled' ? 'text-red-600' : 'text-green-600'}`}>{selectedUser?.accountStatus || 'Active'}</span></div>
+                    <div className="flex justify-between p-2.5 bg-gray-50"><span>Last Seen Online</span><span className="font-bold text-gray-700">{selectedUser?.last_seen || 'N/A'}</span></div>
                   </div>
                 </div>
               )}
+
               {manageTab === 'edit' && (
-                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs">
+                <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs text-gray-800">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" placeholder="Leave blank to keep old" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">First Name</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Last Name</label><input type="text" value={editFamily} onChange={e=>setEditFamily(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" value={editEmail} onChange={e=>setEditEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Address</label><input type="text" value={editAddress} onChange={e=>setEditAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" value={editNationalId} onChange={e=>setEditNationalId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" value={editStaticIp} onChange={e=>setEditStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" value={editExpiration} onChange={e=>setEditExpiration(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
+                    <div>
+                      <label className="block font-bold text-gray-600 mb-1">Select Profile</label>
+                      <select value={editProfile} onChange={e=>setEditProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300 focus:outline-none">
+                        <option value="">-- Choose Profile --</option>
+                        {profilesList.map((p, idx) => (
+                          <option key={idx} value={p.name}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <button type="submit" className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Save Changes</button>
                 </form>
+              )}
+
+              {manageTab === 'traffic' && (
+                <div className="space-y-4">
+                  <div className="flex gap-4 mb-2">
+                    <select value={userTrafficMonth} onChange={e=>setUserTrafficMonth(e.target.value)} className="border p-1 text-xs rounded bg-white text-gray-900 border-gray-300">
+                      {Array.from({length:12}).map((_,m)=> { const v=(m+1).toString().padStart(2,'0'); return <option key={v} value={v}>{v}</option>; })}
+                    </select>
+                    <select value={userTrafficYear} onChange={e=>setUserTrafficYear(e.target.value)} className="border p-1 text-xs rounded bg-white text-gray-900 border-gray-300">
+                      <option value="2026">2026</option>
+                      <option value="2025">2025</option>
+                    </select>
+                  </div>
+                  {isUserTrafficLoading ? <div className="text-xs text-gray-500">Loading chart data...</div> : <div className="h-64 border rounded-xl p-2 bg-gray-50"><UserTrafficChart data={userTrafficData} /></div>}
+                </div>
+              )}
+
+              {manageTab === 'history' && (
+                <div className="border rounded-xl bg-gray-50 overflow-hidden">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead><tr className="bg-gray-200 border-b font-bold text-gray-600"><th className="p-2">Action</th><th className="p-2">Details</th><th className="p-2">Date</th></tr></thead>
+                    <tbody>
+                      {historyData.map((h,idx)=>(<tr key={idx} className="border-b text-gray-700 font-medium"><td className="p-2 font-bold">{h.action}</td><td className="p-2">{h.details}</td><td className="p-2 text-gray-500">{h.date}</td></tr>))}
+                      {historyData.length===0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400 font-bold">No logs found for this account</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
