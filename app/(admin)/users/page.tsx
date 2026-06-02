@@ -89,6 +89,7 @@ export default function UsersPage() {
   const getUserStatus = (u: any) => {
     if (!u) return "Disabled";
     if (u.status === "Online" || u.status === "online" || u.is_online === 1) return "Online";
+    if (u.accountStatus === "Expired" || u.accountStatus === "expired") return "Expired";
     if (u.accountStatus === "Depleted" || u.accountStatus === "depleted") return "Depleted";
     if (u.accountStatus === "Disabled" || u.accountStatus === "disabled") return "Disabled";
     return "Active";
@@ -119,6 +120,7 @@ export default function UsersPage() {
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-blue-500 rounded-sm"></span> Online ({countStatus('Online')})</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-green-500 rounded-sm"></span> Active ({countStatus('Active')})</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-400 rounded-sm"></span> Depleted ({countStatus('Depleted')})</div>
+          <div className="flex items-center gap-2"><span className="w-3 h-3 bg-orange-500 rounded-sm"></span> Expired ({countStatus('Expired')})</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 rounded-sm"></span> Disabled ({countStatus('Disabled')})</div>
         </div>
         
@@ -207,18 +209,19 @@ export default function UsersPage() {
                   onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditExpiration(u.expiration ? u.expiration.split('T') : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
                   className={`hover:bg-slate-50 transition border-b border-gray-200 cursor-pointer text-[14px] ${selectedUser?.username === u.username ? 'bg-sky-50' : ''}`}
                 >
-                  <td className="p-3"><input type="checkbox" checked={selectedUser?.username === u.username} readOnly /></td>
                   <td className="py-3 px-4">
                     <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold uppercase border ${
                       st === 'Online' ? 'bg-blue-50 text-blue-700 border-blue-300' :
                       st === 'Active' ? 'bg-green-50 text-green-700 border-green-300' :
                       st === 'Depleted' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                      st === 'Expired' ? 'bg-orange-50 text-orange-700 border-orange-300' :
                       'bg-red-50 text-red-700 border-red-300'
                     }`}>
                       <span className={`w-3 h-3 rounded-full ${
                         st === 'Online' ? 'bg-blue-600' :
                         st === 'Active' ? 'bg-green-600' :
                         st === 'Depleted' ? 'bg-yellow-500' :
+                        st === 'Expired' ? 'bg-orange-600' :
                         'bg-red-600'
                       }`}></span>{st}
                     </span>
