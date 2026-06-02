@@ -195,6 +195,7 @@ export default function UsersPage() {
               <th className="p-3">Static IP</th>
               <th className="p-3">Expiration</th>
               <th className="p-3">Parent</th>
+              <th className="p-3">Traffic Limit</th>
               <th className="p-3">Remaining Traffic</th>
               <th className="p-3">Daily Traffic</th>
               <th className="p-3">Remaining Days</th>
@@ -206,9 +207,10 @@ export default function UsersPage() {
               return (
                 <tr
                   key={i}
-                  onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditExpiration(u.expiration ? u.expiration.split('T') : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
+                  onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
                   className={`hover:bg-slate-50 transition border-b border-gray-200 cursor-pointer text-[14px] ${selectedUser?.username === u.username ? 'bg-sky-50' : ''}`}
                 >
+                  <td className="p-3"><input type="checkbox" checked={selectedUser?.username === u.username} readOnly /></td>
                   <td className="py-3 px-4">
                     <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold uppercase border ${
                       st === 'Online' ? 'bg-blue-50 text-blue-700 border-blue-300' :
@@ -230,9 +232,10 @@ export default function UsersPage() {
                   <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName || u.name || '-'}</td>
                   <td className="py-3 px-4 text-gray-800 font-medium">{u.lastName || u.family || '-'}</td>
                   <td className="py-3 px-4 text-blue-600 font-semibold">{u.staticIp || '-'}</td>
-                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.split('T') : 'Permanent'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.split('T')[0] : 'Permanent'}</td>
                   <td className="py-3 px-4 text-gray-600 font-medium">{u.parent || 'admin'}</td>
-                  <td className="py-3 px-4 font-bold text-slate-800">{u.dataLimitString || 'Unlimited'}</td>
+                  <td className="py-3 px-4 font-bold text-slate-800">{u.group || 'Unlimited'}</td>
+                  <td className="py-3 px-4 font-bold text-sky-700">{u.dataLimitString && u.dataLimitString !== "" ? u.dataLimitString : "Unlimited"}</td>
                   <td className="py-3 px-4 font-bold text-slate-800">{u.daily_usage || '0.00 MB'}</td>
                   <td className="py-3 px-4 font-bold text-sky-700">{calculateDaysValue(u.expiration)}</td>
                 </tr>
