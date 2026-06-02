@@ -31,8 +31,6 @@ export default function UsersPage() {
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editAddress, setEditAddress] = useState('');
-  const [editNationalId, setEditNationalId] = useState('');
-  const [editNote, setEditNote] = useState('');
   const [editExpiration, setEditExpiration] = useState('');
   const [editProfile, setEditProfile] = useState('');
   const [profilesList, setProfilesList] = useState<any[]>([]);
@@ -91,8 +89,8 @@ export default function UsersPage() {
   const getUserStatus = (u: any) => {
     if (!u) return "Disabled";
     if (u.status === "Online" || u.status === "online" || u.is_online === 1) return "Online";
-    if (u.accountStatus === "Disabled" && parseFloat(u.daily_usage || u.daily_traffic || "0") > 0) return "Depleted";
-    if (u.accountStatus === "Disabled") return "Disabled";
+    if (u.accountStatus === "Depleted" || u.accountStatus === "depleted") return "Depleted";
+    if (u.accountStatus === "Disabled" || u.accountStatus === "disabled") return "Disabled";
     return "Active";
   };
 
@@ -107,7 +105,7 @@ export default function UsersPage() {
         body: JSON.stringify({
           password: editPassword, group: editProfile, staticIp: editStaticIp,
           name: editName, family: editFamily, phone: editPhone, email: editEmail,
-          address: editAddress, nationalId: editNationalId, note: editNote, expiration: editExpiration
+          address: editAddress, expiration: editExpiration
         })
       });
       if (res.ok) { alert("Saved successfully!"); setIsManageModalOpen(false); fetchUsers(); }
@@ -206,7 +204,7 @@ export default function UsersPage() {
               return (
                 <tr
                   key={i}
-                  onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditNationalId(u.nationalId || ''); setEditNote(u.note || ''); setEditExpiration(u.expiration ? u.expiration.split('T')[0] : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
+                  onClick={() => { setSelectedUser(u); setEditUsername(u.username); setEditPassword(u.password || ''); setEditStaticIp(u.staticIp || ''); setEditName(u.firstName || u.name || ''); setEditFamily(u.lastName || u.family || ''); setEditPhone(u.phone || ''); setEditEmail(u.email || ''); setEditAddress(u.address || ''); setEditExpiration(u.expiration ? u.expiration.split('T') : ''); setEditProfile(u.group || ''); setIsManageModalOpen(true); setManageTab('overview'); }}
                   className={`hover:bg-slate-50 transition border-b border-gray-200 cursor-pointer text-[14px] ${selectedUser?.username === u.username ? 'bg-sky-50' : ''}`}
                 >
                   <td className="p-3"><input type="checkbox" checked={selectedUser?.username === u.username} readOnly /></td>
@@ -229,7 +227,7 @@ export default function UsersPage() {
                   <td className="py-3 px-4 text-gray-800 font-medium">{u.firstName || u.name || '-'}</td>
                   <td className="py-3 px-4 text-gray-800 font-medium">{u.lastName || u.family || '-'}</td>
                   <td className="py-3 px-4 text-blue-600 font-semibold">{u.staticIp || '-'}</td>
-                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.split('T')[0] : 'Permanent'}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{u.expiration ? u.expiration.split('T') : 'Permanent'}</td>
                   <td className="py-3 px-4 text-gray-600 font-medium">{u.parent || 'admin'}</td>
                   <td className="py-3 px-4 font-bold text-slate-800">{u.dataLimitString || 'Unlimited'}</td>
                   <td className="py-3 px-4 font-bold text-slate-800">{u.daily_usage || '0.00 MB'}</td>
@@ -273,7 +271,7 @@ export default function UsersPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <button type="button" onClick={async () => { if(confirm(`Activate user: ${selectedUser?.username}?`)) { await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Active' }) }); alert('User Activated!'); setIsManageModalOpen(false); fetchUsers(); } }} className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">⚡ Activate</button>
                       <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">📄 Issue Invoice</button>
-                      <button type="button" onClick={() => { setIsTrafficModalOpen(true); setIsManageModalOpen(false); }} className="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🧩 Change Profile</button>
+                      <button type="button" onClick={() => setManageTab('edit')} className="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🧩 Change Profile</button>
                       <button type="button" onClick={async () => { if(confirm(`Disconnect user: ${selectedUser?.username}?`)) { await fetch(`/api/users/${selectedUser?.username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountStatus: 'Disabled' }) }); alert('User Disconnected!'); setIsManageModalOpen(false); fetchUsers(); } }} className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">🔌 Disconnect</button>
                       <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">💵 Deposit</button>
                       <button type="button" className="flex flex-col items-center justify-center p-3 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-bold transition gap-1 shadow-sm text-[11px]">💸 Withdrawal</button>
@@ -290,7 +288,7 @@ export default function UsersPage() {
                     <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Owner</span><span className="font-bold text-gray-700">{selectedUser?.parent || 'admin'}</span></div>
                     <div className="flex justify-between border-b p-2.5"><span>Profile</span><span className="font-bold text-blue-600">{selectedUser?.group || '100GB2MB-30d'}</span></div>
                     <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Expiration</span><span className="font-bold text-gray-900">{selectedUser?.expiration || 'Permanent'}</span></div>
-                    <div className="flex justify-between border-b p-2.5"><span>Debt Days</span><span className="font-bold text-gray-900">0</span></div>
+                    <div className="flex justify-between border-b p-2.5"><span>Remaining Traffic</span><span className="font-bold text-sky-700">{selectedUser?.dataLimitString || 'Unlimited'}</span></div>
                     <div className="flex justify-between border-b p-2.5 bg-gray-50"><span>Incorrect PIN tries</span><span className="font-bold text-gray-900">0</span></div>
                     <div className="flex justify-between border-b p-2.5"><span>Status</span><span className={`font-bold ${selectedUser?.accountStatus === 'Disabled' ? 'text-red-600' : 'text-green-600'}`}>{selectedUser?.accountStatus || 'Active'}</span></div>
                     <div className="flex justify-between p-2.5 bg-gray-50"><span>Last Seen Online</span><span className="font-bold text-gray-700">{selectedUser?.last_seen || 'N/A'}</span></div>
@@ -301,16 +299,19 @@ export default function UsersPage() {
               {manageTab === 'edit' && (
                 <form onSubmit={handleSaveUserEdit} className="space-y-4 bg-white text-xs text-gray-800">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 bg-sky-50 p-3 rounded-lg border border-sky-200 flex justify-between items-center font-bold text-sky-800">
+                      <span>📉 Remaining Traffic:</span>
+                      <span className="text-sm bg-white px-3 py-1 rounded-md shadow-sm">{selectedUser?.dataLimitString || 'Unlimited'}</span>
+                    </div>
                     <div><label className="block font-bold text-gray-600 mb-1">New Password</label><input type="text" value={editPassword} onChange={e=>setEditPassword(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" placeholder="Leave blank to keep old" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">First Name</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Last Name</label><input type="text" value={editFamily} onChange={e=>setEditFamily(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" value={editPhone} onChange={e=>setEditPhone(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" value={editEmail} onChange={e=>setEditEmail(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Address</label><input type="text" value={editAddress} onChange={e=>setEditAddress(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
-                    <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" value={editNationalId} onChange={e=>setEditNationalId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" value={editStaticIp} onChange={e=>setEditStaticIp(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
                     <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" value={editExpiration} onChange={e=>setEditExpiration(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300" /></div>
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block font-bold text-gray-600 mb-1">Select Profile</label>
                       <select value={editProfile} onChange={e=>setEditProfile(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-gray-900 bg-white border-gray-300 focus:outline-none">
                         <option value="">-- Choose Profile --</option>
@@ -390,7 +391,6 @@ export default function UsersPage() {
                 <div><label className="block font-bold text-gray-600 mb-1">Phone</label><input type="text" id="new_user_phone" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
                 <div><label className="block font-bold text-gray-600 mb-1">Email</label><input type="text" id="new_user_email" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
                 <div><label className="block font-bold text-gray-600 mb-1">Physical Address</label><input type="text" id="new_user_address" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
-                <div><label className="block font-bold text-gray-600 mb-1">National ID</label><input type="text" id="new_user_nationalid" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
                 <div><label className="block font-bold text-gray-600 mb-1">Static IP</label><input type="text" id="new_user_staticip" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" /></div>
                 <div><label className="block font-bold text-gray-600 mb-1">Expiration Date</label><input type="date" id="new_user_expiration" className="w-full px-3 py-1.5 border rounded-lg bg-white text-gray-900 border-gray-300" defaultValue="2026-12-31" /></div>
                 <div className="md:col-span-2">
@@ -414,7 +414,6 @@ export default function UsersPage() {
                 const ph = (document.getElementById('new_user_phone') as HTMLInputElement)?.value || '';
                 const em = (document.getElementById('new_user_email') as HTMLInputElement)?.value || '';
                 const ad = (document.getElementById('new_user_address') as HTMLInputElement)?.value || '';
-                const ni = (document.getElementById('new_user_nationalid') as HTMLInputElement)?.value || '';
                 const ip = (document.getElementById('new_user_staticip') as HTMLInputElement)?.value || '';
                 const ex = (document.getElementById('new_user_expiration') as HTMLInputElement)?.value || '';
                 const pr = (document.getElementById('new_user_profile') as HTMLSelectElement)?.value || '';
@@ -422,7 +421,7 @@ export default function UsersPage() {
                 if(!u || !p) { alert('Please enter Username and Password'); return; }
                 const res = await fetch('/api/users', {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ username: u, password: p, firstName: fn, lastName: ln, phone: ph, email: em, address: ad, nationalId: ni, staticIp: ip, expiration: ex, group: pr })
+                  body: JSON.stringify({ username: u, password: p, firstName: fn, lastName: ln, phone: ph, email: em, address: ad, staticIp: ip, expiration: ex, group: pr })
                 });
                 if (res.ok) { alert('User Created Successfully!'); setIsAddUserModalOpen(false); fetchUsers(); }
               }} className="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold shadow hover:bg-sky-600 transition">Create</button>
