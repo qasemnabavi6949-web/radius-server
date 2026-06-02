@@ -1,12 +1,5 @@
 import { NextResponse } from 'next/server';
 import { query, initDb } from '@/lib/db';
-import { exec } from 'child_process';
-
-function sendRadiusDisconnect(username: string, nasIp: string) {
-  const secret = 'testing123'; 
-  const cmd = `echo "User-Name=${username}" | radclient -x ${nasIp}:3799 disconnect ${secret}`;
-  exec(cmd, (err, stdout, stderr) => {});
-}
 
 export async function PUT(req: Request, { params }: { params: any }) {
   try {
@@ -45,10 +38,11 @@ export async function PUT(req: Request, { params }: { params: any }) {
 
     if (password && password !== "" && password !== null) {
       await query("UPDATE radcheck SET value = ? WHERE username = ? AND attribute = 'Cleartext-Password'", [password, username]);
+      await query("INSERT INTO dashboard_history (username, action, details, created_at) VALUES (?, 'Password Change', 'Password updated by administrator', NOW())", [username]);
     }
     
     if (group && group !== "") {
-      await query("DELETE FROM radreply WHERE username = ? AND attribute IN ('Mikrotik-Total-Limit', 'Mikrotik-Total-Limit-Bytes', 'Mikrotik-Xmit-Limit', 'Acct-Interim-Interval', 'Session-Timeout')", [username]);
+      await query("DELETE FROM radreply WHERE username = ? AND attribute IN ('Mikrotik-Total-Limit', 'Mikrotik-Total-Limit-Bytes', 'Mikrotik-Xmit-Limit', 'Acct-Interim-Interval')", [username]);
       
       const normalizedGroup = group.toString().toLowerCase();
       let totalMaxBytes = 10 * 1024 * 1024; 
@@ -61,23 +55,21 @@ export async function PUT(req: Request, { params }: { params: any }) {
          totalMaxBytes = 10 * 1024 * 1024;
       }
 
-      const usageRows = await query(
-        "SELECT COALESCE(SUM(acctinputoctets) + SUM(acctoutputoctets), 0) AS total_used FROM radacct WHERE username = ?",
-        [username]
-      );
-      const totalUsedBytes = parseFloat((usageRows as any)?.total_used || "0");
+      const usageRows = await query("SELECT COALESCE(SUM(acctinputoctets) + SUM(acctoutputoctets), 0) AS total_used FROM radacct WHERE username = ?", [username]);
+      const totalUsedBytes = parseFloat((usageRows as any)?.[0]?.total_used || "0");
       const remainingBytes = totalMaxBytes - totalUsedBytes;
 
       if (remainingBytes <= 0) {
         await query("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type'", [username]);
         await query("INSERT INTO radcheck (username, attribute, op, value) VALUES (?, 'Auth-Type', ':=', 'Reject')", [username]);
-        sendRadiusDisconnect(username, '100.100.100.10');
       } else {
         await query("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'", [username]);
         await query("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Total-Limit-Bytes', ':=', ?)", [username, remainingBytes.toString()]);
         await query("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Xmit-Limit', ':=', ?)", [username, remainingBytes.toString()]);
         await query("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Acct-Interim-Interval', ':=', '60')", [username]);
       }
+
+      await query("INSERT INTO dashboard_history (username, action, details, created_at) VALUES (?, 'Profile Change', ?, NOW())", [username, `Profile updated/renewed to ${group}`]);
     }
 
     if (accountStatus) {
@@ -88,10 +80,11 @@ export async function PUT(req: Request, { params }: { params: any }) {
       try {
         await query("UPDATE radacct SET acctstoptime = CURRENT_TIMESTAMP, acctterminatecause = 'Admin Reset' WHERE username = ? AND acctstoptime IS NULL", [username]);
       } catch (e) {}
-      sendRadiusDisconnect(username, '100.100.100.10');
+
+      await query("INSERT INTO dashboard_history (username, action, details, created_at) VALUES (?, 'Status Change', ?, NOW())", [username, `Account status forced to ${accountStatus}`]);
     }
 
-    return NextResponse.json({ success: true, message: 'User updated successfully' });
+    return NextResponse.json({ success: true, message: 'User updated successfully and log written.' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -113,7 +106,6 @@ export async function DELETE(req: Request, { params }: { params: any }) {
       await query("UPDATE radacct SET acctstoptime = CURRENT_TIMESTAMP WHERE username = ? AND acctstoptime IS NULL", [username]);
     } catch (e) {}
 
-    sendRadiusDisconnect(username, '100.100.100.10');
     return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

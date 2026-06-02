@@ -9,38 +9,37 @@ export async function POST(req: Request, { params }: { params: any }) {
     if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
 
     const body = await req.json();
-    const trafficInput = parseFloat(body.traffic) || 0;
-    const comment = body.comment || 'Traffic Added';
+    const trafficMB = parseFloat(body.traffic || "0");
+    if (trafficMB <= 0) return NextResponse.json({ error: 'Invalid traffic amount' }, { status: 400 });
 
-    if (trafficInput <= 0) return NextResponse.json({ error: 'Invalid traffic amount' }, { status: 400 });
+    const addedBytes = trafficMB * 1024 * 1024;
 
-    const userRows: any = await query('SELECT dataLimitBytes FROM dashboard_users WHERE username = ?', [username]);
-    if (!userRows || userRows.length === 0) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-
-    const oldBytes = BigInt(userRows[0]?.dataLimitBytes || 0);
-    const addedBytes = BigInt(Math.floor(trafficInput * 1024 * 1024));
-    const totalBytes = oldBytes + addedBytes;
+    const userRows = await query("SELECT dataLimitBytes, dashboard_users.group FROM dashboard_users WHERE username = ?", [username]);
+    const currentUser = (userRows as any)?.[0];
     
-    const gigabytesValue = (Number(totalBytes) / (1024 * 1024 * 1024)).toFixed(2);
-    const newLimitString = `${gigabytesValue} GB`;
-    const radiusMegabytes = (Number(totalBytes) / (1024 * 1024)).toFixed(0);
+    if (!currentUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+    const currentLimitBytes = parseFloat(currentUser.dataLimitBytes || "0");
+    const newLimitBytes = currentLimitBytes + addedBytes;
+    const newLimitString = `${(newLimitBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 
     await query(
-      'UPDATE dashboard_users SET dataLimitBytes = ?, dataLimitString = ?, accountStatus = "Active" WHERE username = ?',
-      [totalBytes.toString(), newLimitString, username]
+      "UPDATE dashboard_users SET dataLimitBytes = ?, dataLimitString = ?, accountStatus = 'Active' WHERE username = ?",
+      [newLimitBytes, newLimitString, username]
     );
 
-    await query('DELETE FROM radcheck WHERE username = ? AND attribute = "Max-All-MB"', [username]);
-    await query('INSERT INTO radcheck (username, attribute, op, value) VALUES (?, "Max-All-MB", ":=", ?)', [username, radiusMegabytes]);
+    await query("DELETE FROM radreply WHERE username = ? AND attribute IN ('Mikrotik-Total-Limit-Bytes', 'Mikrotik-Xmit-Limit')", [username]);
+    await query("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Total-Limit-Bytes', ':=', ?)", [username, newLimitBytes.toString()]);
+    await query("INSERT INTO radreply (username, attribute, op, value) VALUES (?, 'Mikrotik-Xmit-Limit', ':=', ?)", [username, newLimitBytes.toString()]);
+    await query("DELETE FROM radcheck WHERE username = ? AND attribute = 'Auth-Type' AND value = 'Reject'", [username]);
 
-    try {
-      await query(
-        'INSERT INTO dashboard_history (username, action, details, date) VALUES (?, "Add Traffic", ?, CURRENT_TIMESTAMP)',
-        [username, `Added ${trafficInput} MB. Total: ${newLimitString}`]
-      );
-    } catch (hErr) {}
+    const detailsLog = `Added ${trafficMB} MB traffic manually. Total limit expanded to ${newLimitString}`;
+    await query(
+      "INSERT INTO dashboard_history (username, action, details, created_at) VALUES (?, 'Add Traffic', ?, NOW())",
+      [username, detailsLog]
+    );
 
-    return NextResponse.json({ success: true, message: 'Traffic updated successfully' });
+    return NextResponse.json({ success: true, message: 'Traffic extended and documented.' });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
